@@ -1,0 +1,8 @@
+{
+  "name": "Gram AI",
+  "description": "Unified digital commerce, logistics, and AI business intelligence platform for rural entrepreneurs and artisans.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
