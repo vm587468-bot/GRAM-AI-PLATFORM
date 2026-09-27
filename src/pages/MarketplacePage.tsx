@@ -10,7 +10,11 @@ import {
   Check, 
   Heart,
   ChevronRight,
-  Info
+  Info,
+  Sparkles,
+  Loader2,
+  PlusCircle,
+  ArrowRight
 } from 'lucide-react';
 import { Product, Review } from '../types';
 import { useCart } from '../context/CartContext';
@@ -19,19 +23,34 @@ import { SupportedLanguage } from '../i18n';
 interface MarketplacePageProps {
   onOpenCheckout: () => void;
   currentLang: SupportedLanguage;
+  externalSearch?: string;
 }
 
-export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout }) => {
+export const MarketplacePage: React.FC<MarketplacePageProps> = ({ 
+  onOpenCheckout,
+  externalSearch = ''
+}) => {
   const { addToCart } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(externalSearch);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [productReviews, setProductReviews] = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [addedNotice, setAddedNotice] = useState(false);
+
+  // Dynamic Sourcing State
+  const [customSourcingInput, setCustomSourcingInput] = useState('');
+  const [isSourcing, setIsSourcing] = useState(false);
+  const [sourcingNotice, setSourcingNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (externalSearch) {
+      setSearchQuery(externalSearch);
+    }
+  }, [externalSearch]);
 
   useEffect(() => {
     fetchProducts();
@@ -51,6 +70,44 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
       console.error('Failed to load products', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Discover & Source ANY Product on-demand via Gemini backend
+  const handleDiscoverAnyProduct = async (queryText?: string) => {
+    const targetQuery = (queryText || customSourcingInput || searchQuery).trim();
+    if (!targetQuery) return;
+
+    setIsSourcing(true);
+    setSourcingNotice(`Sourcing authentic village producers for "${targetQuery}"...`);
+
+    try {
+      const res = await fetch('/api/products/discover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: targetQuery,
+          categoryHint: selectedCategory !== 'all' ? selectedCategory : undefined
+        })
+      });
+
+      const data = await res.json();
+      if (data.product) {
+        setSourcingNotice(`Discovered & verified: "${data.product.title}"`);
+        setProducts(prev => {
+          const filtered = prev.filter(p => p.id !== data.product.id);
+          return [data.product, ...filtered];
+        });
+        setCustomSourcingInput('');
+        // Open the newly generated/sourced product modal directly
+        openProductModal(data.product);
+      }
+    } catch (err) {
+      console.error('Failed to discover product', err);
+      setSourcingNotice('Failed to source product. Please try another name.');
+    } finally {
+      setIsSourcing(false);
+      setTimeout(() => setSourcingNotice(null), 4000);
     }
   };
 
@@ -78,28 +135,119 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
   const categories = [
     { id: 'all', label: 'All Village Goods' },
     { id: 'textiles', label: 'Handloom Textiles' },
-    { id: 'spices', label: 'Organic Spices' },
-    { id: 'pottery', label: 'Terracotta & Pottery' },
+    { id: 'spices', label: 'Organic Spices & Saffron' },
+    { id: 'pottery', label: 'Terracotta & Blue Pottery' },
     { id: 'honey_oils', label: 'Raw Honey & Oils' },
-    { id: 'bamboo_wood', label: 'Bamboo & Wood Craft' },
+    { id: 'bamboo_wood', label: 'Wood, Leather & Crafts' },
+  ];
+
+  const quickIdeas = [
+    'Kashmiri Mongra Saffron',
+    'Jaipur Blue Pottery Floral Vase',
+    'Kolhapuri Leather Chappals',
+    'Coorg Arabica Coffee',
+    'Bastar Bell Metal Figurine',
+    'Kalamkari Cotton Saree',
+    'Mysore Sandalwood Soap',
+    'Terracotta Clay Water Bottle'
   ];
 
   return (
     <div className="container mx-auto px-4 max-w-6xl py-8 space-y-8">
       
-      {/* Header Banner */}
+      {/* Header Banner with On-Demand Sourcing Badge */}
       <div className="bg-[#2D5A27] text-white rounded-3xl p-6 sm:p-10 relative overflow-hidden shadow-md">
         <div className="relative z-10 max-w-2xl space-y-3">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#E6B325]">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Direct Village Producer Marketplace</span>
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>On-Demand Rural Sourcing · Any Product in India</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-serif font-bold text-white tracking-tight">
-            Authentic Indian Heritage, Straight from the Creator.
+            See & Buy Any Authentic Village Product You Want.
           </h1>
           <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
-            Zero counterfeit middlemen. Transparent pricing where 85%+ reaches the rural self-help group with instant UPI verification.
+            Search our curated GI-certified inventory, or type *anything you desire* — from Kashmiri Saffron to Jaipur Blue Pottery. Our AI copilot will source authentic village producers in real-time.
           </p>
+        </div>
+      </div>
+
+      {/* On-Demand AI Product Sourcing Tool */}
+      <div className="bg-gradient-to-r from-[#E6B325]/15 via-white to-[#F8F5F0] p-5 rounded-3xl border border-[#E6B325]/40 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-[#E6B325] text-[#2C2C2C] flex items-center justify-center font-bold text-xs">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xs sm:text-sm text-[#2D5A27]">
+                Want to see ANY product? Source anything from rural India on-demand:
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Type any item (e.g. Kolhapuri chappals, Warli painting, clay water jug, pure sandalwood) to add it instantly to the catalog.
+              </p>
+            </div>
+          </div>
+
+          {sourcingNotice && (
+            <span className="text-xs font-semibold text-[#2D5A27] bg-[#2D5A27]/10 px-3 py-1 rounded-lg animate-pulse">
+              {sourcingNotice}
+            </span>
+          )}
+        </div>
+
+        {/* Dynamic Sourcing Input */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleDiscoverAnyProduct();
+          }}
+          className="flex flex-col sm:flex-row gap-2 pt-1"
+        >
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={customSourcingInput}
+              onChange={(e) => setCustomSourcingInput(e.target.value)}
+              placeholder="Type ANY product name here (e.g., Mysore Sandalwood Oil, Assam Muga Silk, Clay Tawa)..."
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs bg-white text-slate-800 focus:outline-none focus:border-[#2D5A27] shadow-inner"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={!customSourcingInput.trim() || isSourcing}
+            className="px-5 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+          >
+            {isSourcing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#E6B325]" />
+                <span>Sourcing from Village...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 text-[#E6B325]" />
+                <span>Source with Gram AI</span>
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Sample One-Click Ideas */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-1 text-[11px]">
+          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Try Sourcing:</span>
+          {quickIdeas.map((idea, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setCustomSourcingInput(idea);
+                handleDiscoverAnyProduct(idea);
+              }}
+              className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#2D5A27]/10 hover:text-[#2D5A27] text-slate-700 border border-slate-200 whitespace-nowrap transition-colors cursor-pointer"
+            >
+              + {idea}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -113,13 +261,21 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search silk dupatta, turmeric, terracotta pots, honey..."
+              placeholder="Search by product name, artisan, materials or state..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#2D5A27]"
             />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-center text-xs text-slate-500">
-            <span>Showing: <strong>{products.length}</strong> authentic products</span>
+            <span>Showing: <strong>{products.length}</strong> live products in store</span>
           </div>
         </div>
 
@@ -141,6 +297,41 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
         </div>
       </div>
 
+      {/* Zero Results / Dynamic Sourcing Fallback */}
+      {products.length === 0 && !loading && (
+        <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border border-slate-200 space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-[#E6B325]/20 text-[#2D5A27] mx-auto flex items-center justify-center">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 font-serif">
+              "{searchQuery}" is not currently in the local catalog
+            </h3>
+            <p className="text-xs text-slate-600 max-w-md mx-auto mt-1">
+              Would you like Gram AI to source and add <strong>"{searchQuery}"</strong> directly from verified Indian village artisan clusters?
+            </p>
+          </div>
+
+          <button
+            onClick={() => handleDiscoverAnyProduct(searchQuery)}
+            disabled={isSourcing}
+            className="px-6 py-3 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs sm:text-sm transition-all shadow-md inline-flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {isSourcing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#E6B325]" />
+                <span>Sourcing "{searchQuery}" with AI...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 text-[#E6B325]" />
+                <span>Source "{searchQuery}" Now</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Product Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -153,20 +344,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
             </div>
           ))}
         </div>
-      ) : products.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 space-y-3">
-          <Info className="w-10 h-10 text-slate-400 mx-auto" />
-          <h3 className="text-base font-bold text-slate-800">No products found</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Try adjusting your search query or selecting a different craft category.
-          </p>
-          <button
-            onClick={() => { setSelectedCategory('all'); setSearchQuery(''); }}
-            className="text-xs font-semibold text-[#2D5A27] hover:underline"
-          >
-            Clear all filters
-          </button>
-        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {products.map((product) => (
@@ -175,7 +352,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
               className="bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs hover:shadow-md hover:border-[#2D5A27]/40 transition-all flex flex-col justify-between group"
             >
               {/* Product Image */}
-              <div className="relative h-52 overflow-hidden bg-slate-100 cursor-pointer" onClick={() => openProductModal(product)}>
+              <div 
+                className="relative h-52 overflow-hidden bg-slate-100 cursor-pointer" 
+                onClick={() => openProductModal(product)}
+              >
                 <img
                   src={product.imageUrl}
                   alt={product.title}
@@ -189,7 +369,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
 
                 <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded flex items-center gap-1">
                   <MapPin className="w-3 h-3 text-[#E6B325]" />
-                  <span>{product.artisanLocation}</span>
+                  <span className="truncate max-w-[170px]">{product.artisanLocation}</span>
                 </div>
               </div>
 
@@ -257,11 +437,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
                 <MapPin className="w-3.5 h-3.5 text-[#2D5A27]" />
                 <span className="font-semibold text-slate-800">{selectedProduct.artisanLocation}</span>
                 <span>·</span>
-                <span>Verified GI Rural Cluster</span>
+                <span>Verified Rural Artisan Cluster</span>
               </div>
               <button
                 onClick={() => setSelectedProduct(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -284,7 +464,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
                     <span>Fair-Trade Escrow Breakdown</span>
                   </div>
                   <p className="text-slate-600 text-[11px]">
-                    <strong>{selectedProduct.fairTradePercent}% (₹{Math.round(selectedProduct.price * (selectedProduct.fairTradePercent / 100))})</strong> goes directly to {selectedProduct.artisanName}. Only 3% covers rural post dispatch consolidation.
+                    <strong>{selectedProduct.fairTradePercent}% (₹{Math.round(selectedProduct.price * (selectedProduct.fairTradePercent / 100))})</strong> goes directly to {selectedProduct.artisanName}. Only 3% covers rural postal aggregation.
                   </p>
                 </div>
               </div>
@@ -305,7 +485,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
                         <span>{selectedProduct.rating}</span>
                       </div>
                       <span className="text-slate-400">·</span>
-                      <span className="text-slate-600">{selectedProduct.reviewsCount} verified buyer reviews</span>
+                      <span className="text-slate-600">{selectedProduct.reviewsCount} verified reviews</span>
                     </div>
                   </div>
 
@@ -329,8 +509,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
 
                   {/* Artisan Provenance Story */}
                   <div className="bg-[#2D5A27]/5 p-3 rounded-xl border border-[#2D5A27]/20 space-y-1">
-                    <h4 className="font-semibold text-[#2D5A27] flex items-center gap-1">
-                      <span>Artisan Heritage Story</span>
+                    <h4 className="font-semibold text-[#2D5A27]">
+                      Artisan Heritage Story
                     </h4>
                     <p className="text-slate-700 italic text-[11px] leading-relaxed">
                       "{selectedProduct.artisanStory}"
@@ -359,14 +539,14 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ onOpenCheckout
                     <div className="flex items-center border border-slate-200 rounded-xl bg-white p-1">
                       <button
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className="px-2.5 py-1 text-slate-600 hover:text-slate-900 font-bold"
+                        className="px-2.5 py-1 text-slate-600 hover:text-slate-900 font-bold cursor-pointer"
                       >
                         -
                       </button>
                       <span className="px-3 font-semibold text-xs text-slate-800">{quantity}</span>
                       <button
                         onClick={() => setQuantity(quantity + 1)}
-                        className="px-2.5 py-1 text-slate-600 hover:text-slate-900 font-bold"
+                        className="px-2.5 py-1 text-slate-600 hover:text-slate-900 font-bold cursor-pointer"
                       >
                         +
                       </button>

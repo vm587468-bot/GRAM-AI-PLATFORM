@@ -132,6 +132,161 @@ app.get('/api/products', (req: Request, res: Response) => {
   res.json({ products: results });
 });
 
+// Dynamic On-Demand Product Sourcing (User can find/create ANY product they want!)
+app.post('/api/products/discover', async (req: Request, res: Response) => {
+  const { query, categoryHint } = req.body;
+  if (!query || typeof query !== 'string' || !query.trim()) {
+    return res.status(400).json({ error: 'Search or product query required' });
+  }
+
+  const cleanQuery = query.trim();
+
+  // 1. Check if we already have an exact or close match in existing dbProducts
+  const existing = dbProducts.find(p =>
+    p.title.toLowerCase().includes(cleanQuery.toLowerCase()) ||
+    p.description.toLowerCase().includes(cleanQuery.toLowerCase())
+  );
+
+  // If found, return existing with isNew: false
+  if (existing) {
+    return res.json({ product: existing, isNew: false, message: 'Found in current inventory' });
+  }
+
+  // 2. Not in catalog yet -> Generate full authentic product using Gemini 3.8 Flash and persist in backend!
+  try {
+    const prompt = `A user wants to find or source this rural/traditional Indian artisanal or agricultural product on the Gram AI platform: "${cleanQuery}".
+Generate a complete, authentic, ethical e-commerce listing for this exact product crafted by an Indian rural artisan, farmer collective, or women's Self-Help Group (SHG).
+
+Return valid JSON with these exact fields:
+- "title": Compelling authentic title celebrating provenance (e.g. "Pure Kashmiri Mongra Saffron 1g" or "Handcrafted Bastar Lost-Wax Dokra Brass Bell")
+- "category": choose strictly one of ["textiles", "spices", "pottery", "honey_oils", "bamboo_wood"]
+- "price": realistic fair price in Indian Rupees (number between 250 and 3800)
+- "originalPrice": slightly higher retail price (number)
+- "stock": realistic available quantity (e.g. 15 to 40)
+- "unit": unit of sale (e.g. "piece", "500g pouch", "jar", "pair", "bottle", "set")
+- "rating": number (between 4.7 and 5.0)
+- "reviewsCount": number of reviews (between 10 and 65)
+- "artisanName": Name of artisan + SHG/Co-op (e.g. "Rameshwar Gurjar (Kalyan SHG)")
+- "artisanLocation": Village/Town + District + State (e.g. "Molela, Rajsamand, Rajasthan")
+- "description": 2-3 sentences explaining traditional craftsmanship, zero chemical inputs, and practical specifications.
+- "artisanStory": 1-2 sentences on how purchasing this product directly supports the artisan's family or village women.
+- "materials": array of 3-4 natural materials/ingredients (e.g. ["Pure Clay", "Natural Wood Ash", "Organic Cotton"])
+- "fairTradePercent": integer between 84 and 89 (percentage directly credited to artisan)`;
+
+    const geminiRes = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        systemInstruction: 'You are an expert curator of authentic Indian rural crafts, handloom, and organic agricultural products.',
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const parsed = JSON.parse(geminiRes.text || '{}');
+
+    // Assign appropriate high-res image based on category and title keywords
+    let imageUrl = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80';
+    const cat = parsed.category || 'textiles';
+    const lower = (parsed.title + ' ' + cleanQuery).toLowerCase();
+
+    if (cat === 'spices' || lower.includes('saffron') || lower.includes('tea') || lower.includes('coffee') || lower.includes('pepper') || lower.includes('spice')) {
+      if (lower.includes('saffron')) {
+        imageUrl = 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80';
+      } else if (lower.includes('coffee')) {
+        imageUrl = 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=800&q=80';
+      } else {
+        imageUrl = 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=800&q=80';
+      }
+    } else if (cat === 'pottery' || lower.includes('clay') || lower.includes('pot') || lower.includes('handi') || lower.includes('ceramic') || lower.includes('vase')) {
+      if (lower.includes('blue') || lower.includes('vase') || lower.includes('ceramic')) {
+        imageUrl = 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=800&q=80';
+      } else {
+        imageUrl = 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80';
+      }
+    } else if (cat === 'honey_oils' || lower.includes('honey') || lower.includes('oil') || lower.includes('ghee')) {
+      if (lower.includes('honey')) {
+        imageUrl = 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=800&q=80';
+      } else {
+        imageUrl = 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=800&q=80';
+      }
+    } else if (cat === 'bamboo_wood' || lower.includes('bamboo') || lower.includes('wood') || lower.includes('leather') || lower.includes('chappal') || lower.includes('metal') || lower.includes('brass')) {
+      if (lower.includes('chappal') || lower.includes('sandal') || lower.includes('leather')) {
+        imageUrl = 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=800&q=80';
+      } else if (lower.includes('brass') || lower.includes('metal') || lower.includes('bronze')) {
+        imageUrl = 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80';
+      } else if (lower.includes('toy')) {
+        imageUrl = 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&w=800&q=80';
+      } else {
+        imageUrl = 'https://images.unsplash.com/photo-1595079672139-5470805087e2?auto=format&fit=crop&w=800&q=80';
+      }
+    } else {
+      // Textiles default
+      if (lower.includes('saree') || lower.includes('kalamkari') || lower.includes('cotton')) {
+        imageUrl = 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=800&q=80';
+      } else {
+        imageUrl = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80';
+      }
+    }
+
+    const newProduct: Product = {
+      id: `prod-ai-${Date.now()}`,
+      artisanId: `artisan-${Date.now()}`,
+      artisanName: parsed.artisanName || 'Verified Village Artisan SHG',
+      artisanLocation: parsed.artisanLocation || 'Rural Cluster, India',
+      title: parsed.title || cleanQuery,
+      category: parsed.category || 'textiles',
+      price: Number(parsed.price) || 850,
+      originalPrice: Number(parsed.originalPrice) || Math.round((Number(parsed.price) || 850) * 1.25),
+      stock: Number(parsed.stock) || 20,
+      unit: parsed.unit || 'piece',
+      rating: Number(parsed.rating) || 4.9,
+      reviewsCount: Number(parsed.reviewsCount) || 18,
+      imageUrl,
+      description: parsed.description || `Authentic handcrafted ${cleanQuery} sourced directly from verified village artisans.`,
+      artisanStory: parsed.artisanStory || 'Directly handcrafted by traditional generational artisans with 86%+ fair revenue reaching the producer.',
+      materials: Array.isArray(parsed.materials) ? parsed.materials : ['Natural Materials', 'Traditional Craft'],
+      inStock: true,
+      featured: true,
+      fairTradePercent: Number(parsed.fairTradePercent) || 86
+    };
+
+    // Prepend to backend database so it becomes permanently searchable and purchaseable!
+    dbProducts.unshift(newProduct);
+
+    res.status(201).json({
+      product: newProduct,
+      isNew: true,
+      message: `Successfully sourced and added "${newProduct.title}" to Gram AI catalog!`
+    });
+  } catch (err: any) {
+    console.error('Discover product error:', err);
+    // Fallback product creation
+    const fallbackProduct: Product = {
+      id: `prod-ai-${Date.now()}`,
+      artisanId: `artisan-${Date.now()}`,
+      artisanName: 'Gram Artisan Collective',
+      artisanLocation: 'Rural Heritage Cluster, India',
+      title: cleanQuery.charAt(0).toUpperCase() + cleanQuery.slice(1),
+      category: (categoryHint as any) || 'textiles',
+      price: 950,
+      originalPrice: 1200,
+      stock: 15,
+      unit: 'piece',
+      rating: 4.9,
+      reviewsCount: 14,
+      imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
+      description: `Authentic traditional ${cleanQuery} created using indigenous techniques and organic raw materials.`,
+      artisanStory: 'Crafted by rural self-help group members with 86% of the purchase price flowing directly into their village bank accounts.',
+      materials: ['Handmade', 'Natural Ingredients', 'Ethical Origin'],
+      inStock: true,
+      featured: true,
+      fairTradePercent: 86
+    };
+    dbProducts.unshift(fallbackProduct);
+    res.status(201).json({ product: fallbackProduct, isNew: true });
+  }
+});
+
 app.get('/api/products/:id', (req: Request, res: Response) => {
   const product = dbProducts.find(p => p.id === req.params.id);
   if (!product) {
@@ -592,6 +747,56 @@ Keep it crisp, actionable, and formatted cleanly.`;
   } catch (err) {
     res.json({
       tips: `1. **Festive Corporate Gifting:** Metro companies are ordering sustainable craft hampers. Bundle small items together for higher order value.\n2. **Natural Sunlight Photography:** Take product photos outside between 8 AM and 10 AM on a plain white khadi cloth to show true natural colors.\n3. **Early Stock Buffer:** Ship fragile items to the district hub at least 5 days before peak festival rush to avoid courier delays.`
+    });
+  }
+});
+
+// 4. Global App Voice Assistant (Answers ANY query related to Gram AI and triggers voice + app actions)
+app.post('/api/ai/app-voice-assistant', async (req: Request, res: Response) => {
+  const { query, language = 'English', currentTab = 'landing' } = req.body;
+
+  try {
+    const productsSummary = dbProducts.slice(0, 10).map(p => `${p.title} (₹${p.price}, ${p.artisanLocation})`).join(', ');
+
+    const systemPrompt = `You are "Gram AI Voice Copilot", the voice assistant for the Gram AI web application.
+Your mission is to answer ANY user question regarding the app, products, orders, payments, logistics, artisan onboarding, and features in a friendly, conversational spoken tone (ready for audio reading).
+
+Key App Knowledge:
+1. Marketplace: Features 100% authentic rural Indian crafts and organic produce. Users can search or discover ANY product in India. Current samples: ${productsSummary}.
+2. Instant UPI Escrow: Direct payments via GPay, PhonePe, Paytm, BHIM. 86%+ goes directly to the village producer's bank account with zero middleman deductions.
+3. Gram Express Logistics: Relays parcels from village SHGs via 150,000+ India Post rural branch offices. Customers receive live GPS tracking and a delivery OTP (sample tracking: GRAM-88219).
+4. Entrepreneur Dashboard: Artisans track sales, fulfill orders, generate product stories using Gemini, and see monthly revenue charts.
+5. Learning Hub (Gram Vidyapeeth): Multilingual lessons on eco-packaging, PM Vishwakarma ₹3 Lakh subsidy loans, and digital bookkeeping.
+6. Support: Toll-free 1800-419-GRAM, WhatsApp (+91 94310 44521), and direct ticket raising with village coordinators.
+
+Response Format Requirements:
+Return valid JSON with:
+- "reply": A natural, concise, spoken voice answer (2-4 sentences max, friendly and helpful, easy to listen to).
+- "action": optional object if the query requests navigation or searching.
+  - type: one of "navigate" | "search_product" | "track_order" | "open_cart" | null
+  - target:
+    - for "navigate": "marketplace" | "dashboard" | "customer" | "logistics" | "learning" | "ai-assistant" | "support"
+    - for "search_product": the search keyword (e.g. "saffron", "pottery", "saree")
+    - for "track_order": the tracking ID (e.g. "GRAM-88219")
+- "suggestedQueries": array of 3 short follow-up questions the user can tap or speak.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: `User query: "${query}" (Language: ${language}, Current screen: ${currentTab})`,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    res.json(parsed);
+  } catch (err: any) {
+    console.error('App voice assistant error:', err);
+    res.json({
+      reply: `Gram AI connects village producers directly with conscious buyers. You can shop authentic rural goods, track orders like GRAM-88219, or access the artisan dashboard to manage your sales!`,
+      action: { type: 'navigate', target: 'marketplace' },
+      suggestedQueries: ['How do I buy with UPI?', 'Track order GRAM-88219', 'Show me organic spices']
     });
   }
 });

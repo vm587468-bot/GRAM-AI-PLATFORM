@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
 import { UpiCheckoutModal } from './components/UpiCheckoutModal';
+import { AppVoiceWidget } from './components/AppVoiceWidget';
 
 import { LandingPage } from './pages/LandingPage';
 import { MarketplacePage } from './pages/MarketplacePage';
@@ -22,6 +23,7 @@ function AppContent() {
   const [currentLang, setCurrentLang] = useState<SupportedLanguage>('en');
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [activeTrackingId, setActiveTrackingId] = useState<string>('GRAM-88219');
+  const [marketplaceSearch, setMarketplaceSearch] = useState<string>('');
 
   const handleOpenCheckout = () => {
     setIsCheckoutOpen(true);
@@ -35,6 +37,11 @@ function AppContent() {
   const handleTrackSpecificOrder = (trackingId: string) => {
     setActiveTrackingId(trackingId);
     setActiveTab('logistics');
+  };
+
+  const handleVoiceFilterMarketplace = (search: string) => {
+    setMarketplaceSearch(search);
+    setActiveTab('marketplace');
   };
 
   return (
@@ -60,6 +67,7 @@ function AppContent() {
           <MarketplacePage
             onOpenCheckout={handleOpenCheckout}
             currentLang={currentLang}
+            externalSearch={marketplaceSearch}
           />
         )}
 
@@ -95,6 +103,14 @@ function AppContent() {
           <SupportPage />
         )}
       </main>
+
+      {/* Floating Global AI Voice Assistant */}
+      <AppVoiceWidget
+        currentTab={activeTab}
+        setActiveTab={setActiveTab}
+        onTrackOrder={handleTrackSpecificOrder}
+        onFilterMarketplace={handleVoiceFilterMarketplace}
+      />
 
       {/* Universal Cart Slide-out Drawer */}
       <CartDrawer
