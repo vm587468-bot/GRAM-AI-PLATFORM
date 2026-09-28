@@ -19,9 +19,11 @@ import {
   Code2,
   Volume2,
   Cpu,
-  Terminal
+  Terminal,
+  Landmark
 } from 'lucide-react';
 import { SupportedLanguage, TRANSLATIONS } from '../i18n';
+import { GovernmentSchemesSection } from '../components/GovernmentSchemesSection';
 
 interface LandingPageProps {
   setActiveTab: (tab: string) => void;
@@ -56,7 +58,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentL
               </p>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-4 pt-2">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
                   onClick={() => setActiveTab('marketplace')}
                   className="px-6 py-3.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-sm transition-all shadow-lg hover:shadow-xl flex items-center gap-2 group cursor-pointer"
@@ -65,9 +67,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentL
                   <ArrowRight className="w-4 h-4 text-[#E6B325] group-hover:translate-x-1 transition-transform" />
                 </button>
 
+                <a
+                  href="#govt-schemes"
+                  className="px-5 py-3.5 rounded-xl bg-[#E6B325] hover:bg-[#d8a41c] text-slate-900 font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer border border-[#C69516]"
+                >
+                  <Landmark className="w-4 h-4 text-[#1B3E17]" />
+                  <span>Govt Schemes & Loans (₹3L - ₹50L)</span>
+                </a>
+
                 <button
                   onClick={() => setActiveTab('dashboard')}
-                  className="px-6 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-[#2D5A27] border border-[#2D5A27]/30 font-semibold text-sm transition-all shadow-xs hover:border-[#2D5A27] flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-[#2D5A27] border border-[#2D5A27]/30 font-semibold text-sm transition-all shadow-xs hover:border-[#2D5A27] flex items-center gap-2 cursor-pointer"
                 >
                   <BarChart3 className="w-4 h-4 text-[#2D5A27]" />
                   <span>Artisan Dashboard</span>
@@ -78,7 +88,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentL
                   className="px-4 py-3.5 rounded-xl bg-[#E6B325]/20 hover:bg-[#E6B325]/30 text-[#2D5A27] border border-[#E6B325]/50 font-semibold text-sm transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-[#2D5A27]" />
-                  <span>Try Gram Sahayak AI</span>
+                  <span>Voice Advisor</span>
                 </button>
               </div>
 
@@ -171,6 +181,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentL
           </div>
         </div>
       </section>
+
+      {/* ================= GOVERNMENT BUSINESS SCHEMES, LOANS & SUBSIDIES (AUTOMATICALLY ON FIRST PAGE) ================= */}
+      <div id="govt-schemes" className="scroll-mt-24">
+        <GovernmentSchemesSection currentLang={currentLang} />
+      </div>
 
       {/* Problem Statement vs Gram AI Solution */}
       <section className="container mx-auto px-4 max-w-6xl">

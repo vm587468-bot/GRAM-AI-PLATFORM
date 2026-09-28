@@ -13,7 +13,8 @@ import {
   PhoneCall,
   Package,
   Store,
-  Binary
+  Binary,
+  Landmark
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -50,6 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const navLinks = [
+    { id: 'schemes', label: 'Govt Schemes & Loans', icon: Landmark, highlight: true },
     { id: 'marketplace', label: t.navMarketplace, icon: Store },
     { id: 'dashboard', label: t.navDashboard, icon: BarChart3, roleOnly: 'entrepreneur' },
     { id: 'customer', label: t.navCustomerPortal, icon: Package },

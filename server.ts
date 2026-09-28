@@ -574,6 +574,215 @@ app.get('/api/deliveries/track/:trackingId', (req: Request, res: Response) => {
   });
 });
 
+// ==================== BUSINESS SCHEMES, LOANS & SUBSIDIES ====================
+let dbSchemes = [
+  {
+    id: 'pm_vishwakarma',
+    name: 'PM Vishwakarma Yojana',
+    tagline: 'Collateral-Free Artisan Loan & ₹15,000 Modern Toolkit Voucher',
+    ministry: 'Ministry of Micro, Small & Medium Enterprises (MoMSME)',
+    maxLoanAmount: 300000,
+    loanDisplay: '₹3,00,000',
+    tranches: 'Tranche 1: ₹1,00,000 (18 mo) · Tranche 2: ₹2,00,000 (30 mo)',
+    interestRate: '5% p.a. (Fixed Subsidized Rate)',
+    interestSubvention: '8% paid by Central Govt',
+    subsidyGrant: '₹15,000 E-Voucher for modern toolkits + ₹500/day training stipend',
+    collateral: '100% Collateral-Free (Covered by Govt Credit Guarantee)',
+    category: 'artisan_toolkits',
+    badge: 'Trending · Most Popular for Artisans',
+    eligibleTrades: ['Weavers & Handloom Tailors', 'Potters & Clay Crafters', 'Carpenters & Woodworkers', 'Blacksmiths & Metal Crafters', 'Leather Footwear Makers', 'Basket & Mat Weavers'],
+    processingTime: '3-5 Days Direct Bank Credit',
+    documents: ['Aadhaar Card (Linked with Phone)', 'Bank Account Passbook', 'Skill Self-Declaration', 'Gram AI Verified Artisan ID']
+  },
+  {
+    id: 'pm_mudra',
+    name: 'Pradhan Mantri MUDRA Yojana (PMMY)',
+    tagline: 'Collateral-Free Working Capital Loans up to ₹20 Lakh',
+    ministry: 'Department of Financial Services, Ministry of Finance',
+    maxLoanAmount: 2000000,
+    loanDisplay: 'Up to ₹20,00,000',
+    tranches: 'Shishu (up to ₹50k) · Kishore (₹50k-₹5L) · Tarun (₹5L-₹10L) · Tarun Plus (₹10L-₹20L)',
+    interestRate: '7.8% - 9.2% p.a. (No Prepayment Penalty)',
+    interestSubvention: 'CGFMU Guarantee (100% loss absorption by Govt)',
+    subsidyGrant: 'Zero processing fee for Shishu & Kishore tiers',
+    collateral: 'Nil / Zero Third-Party Guarantee Required',
+    category: 'collateral_free_loans',
+    badge: 'Instant Working Capital',
+    eligibleTrades: ['Small Retailers & Kirana Stores', 'Ration & Grain Distributors', 'Sports Goods Manufacturers', 'Apparel & Garment Sellers', 'Rural Agro-Processors'],
+    processingTime: '48 Hours Bank Disbursal',
+    documents: ['Aadhaar & PAN Card', 'Business Address Proof or Gram AI Profile', '6-Month Bank Statement', 'Udyam Registration (Free)']
+  },
+  {
+    id: 'pmegp',
+    name: "PMEGP (Prime Minister's Employment Generation)",
+    tagline: 'Up to 35% Direct Capital Subsidy on Manufacturing & Service Setups',
+    ministry: 'KVIC & Ministry of MSME',
+    maxLoanAmount: 5000000,
+    loanDisplay: 'Up to ₹50,00,000',
+    tranches: '₹50 Lakh (Manufacturing) · ₹20 Lakh (Service & Trading units)',
+    interestRate: '8.2% - 9.0% p.a.',
+    interestSubvention: 'Direct Capital Subsidy: 25% (Rural General) to 35% (Rural SC/ST/Women/OBC)',
+    subsidyGrant: 'Government pays up to ₹17.5 Lakh directly as non-refundable grant',
+    collateral: 'Collateral-Free under CGTMSE up to ₹50 Lakh',
+    category: 'capital_subsidies',
+    badge: 'Highest Govt Subsidy (35%)',
+    eligibleTrades: ['Flour & Spice Grinding Mills', 'Cricket Bat & Sports Equipment Workshops', 'Handloom & Textile Units', 'Natural Cosmetic & Oil Extraction', 'Eco-Packaging Units'],
+    processingTime: '7-10 Days via District KVIC',
+    documents: ['Project Report (Gram AI Instant Generator)', 'Aadhaar Card', 'Educational Certificate (8th pass for >₹10L)', 'Category/Rural Domicile Certificate']
+  },
+  {
+    id: 'stand_up_india',
+    name: 'Stand-Up India & Mahila Samridhi Scheme',
+    tagline: '₹10 Lakh to ₹1 Crore Loans Exclusively for Women & SC/ST Founders',
+    ministry: 'SIDBI & Ministry of Finance',
+    maxLoanAmount: 10000000,
+    loanDisplay: '₹10 Lakh - ₹1 Crore',
+    tranches: 'Composite loan covering 75% to 85% of total project cost',
+    interestRate: 'Lowest Bank Base Rate (MCLR + 3%)',
+    interestSubvention: 'Up to 15% Margin Money Support from State Subsidy Funds',
+    subsidyGrant: 'Free handholding by SIDBI & NABARD Mentors',
+    collateral: 'Backed by Credit Guarantee Scheme for Stand Up India (CGFSI)',
+    category: 'women_entrepreneurs',
+    badge: 'Empowering Women Founders',
+    eligibleTrades: ['Women-Led Enterprise', 'Self-Help Group Federations', 'Organic Farming Cooperatives', 'Direct E-Commerce Export Hubs'],
+    processingTime: '5-7 Working Days',
+    documents: ['Aadhaar & PAN', 'Proof of Majority Women Shareholding (>51%)', 'Detailed Project Proposal', 'Bank Statements']
+  },
+  {
+    id: 'nabard_shg',
+    name: 'NABARD Rural SHG Bank Linkage & Micro-Credit',
+    tagline: 'Group Micro-Loans with 3% Prompt Repayment Interest Incentive',
+    ministry: 'National Bank for Agriculture and Rural Development (NABARD)',
+    maxLoanAmount: 1000000,
+    loanDisplay: '₹2,00,000 - ₹10,00,000',
+    tranches: 'Tier 1: ₹2 Lakh · Tier 2: ₹5 Lakh · Tier 3: ₹10 Lakh per SHG group',
+    interestRate: 'Effective 4% - 7% p.a. (with prompt subvention)',
+    interestSubvention: '3% additional interest rebate for timely monthly repayments',
+    subsidyGrant: '₹25,000 Revolving Fund Grant per SHG group',
+    collateral: 'Collateral-Free Peer Group Guarantee',
+    category: 'women_entrepreneurs',
+    badge: 'SHG Friendly · 4% Effective Interest',
+    eligibleTrades: ['Village Self-Help Groups (SHGs)', 'Joint Liability Groups (JLGs)', 'Women Handicraft Guilds', 'Farmer Producer Groups (FPOs)'],
+    processingTime: '3 Days via Regional Gramin Banks',
+    documents: ['SHG Resolution Register Copy', 'Group Savings Account Details', 'Aadhaar of Group Office Bearers']
+  },
+  {
+    id: 'odop_financial',
+    name: 'ODOP Financial Grant & Air/Sea Freight Subsidy',
+    tagline: '100% Free Grants for Packaging, Lab Testing & 50% Export Freight',
+    ministry: 'Ministry of Commerce & Industry (DPIIT)',
+    maxLoanAmount: 1000000,
+    loanDisplay: '₹10,00,000 Grant',
+    tranches: 'Direct Non-Repayable Grant (0% Interest, Nil Payback)',
+    interestRate: '0% (Non-Repayable Financial Grant)',
+    interestSubvention: '100% Government Grant for quality testing & certification',
+    subsidyGrant: '50% Freight Reimbursement for domestic & international shipments',
+    collateral: 'Zero Collateral (Direct Govt Welfare Grant)',
+    category: 'artisan_toolkits',
+    badge: '100% Non-Repayable Grant',
+    eligibleTrades: ['Varanasi Silk Textiles', 'Kashmir Willow Bat Guilds', 'Dehradun Basmati Producers', 'Kutch Kala Cotton Weavers', 'Moradabad Metal Artisans'],
+    processingTime: 'Instant Pre-Eligibility Confirmation',
+    documents: ['District Origin Proof', 'Gram AI Artisan Certificate', 'Bank Account Details']
+  }
+];
+
+let dbSchemeApplications: any[] = [
+  {
+    id: 'APP-VISHWA-8421',
+    applicantName: 'Vedant Mishra',
+    phone: '+91 94310 44521',
+    schemeId: 'pm_vishwakarma',
+    schemeName: 'PM Vishwakarma Yojana',
+    trade: 'Weavers & Handloom Tailors',
+    requestedAmount: 300000,
+    subsidyAmount: 15000,
+    status: 'Sanctioned & Direct Disbursal Ready',
+    appliedAt: '2024-09-24',
+    kioskLocation: 'Varanasi Central Gramin Kiosk #104'
+  }
+];
+
+app.get('/api/schemes', (_req: Request, res: Response) => {
+  res.json({
+    schemes: dbSchemes,
+    totalSubsidiesAvailable: '₹1,500+ Crore National Allocation',
+    verifiedKiosks: 154000,
+    recentApplications: dbSchemeApplications.length
+  });
+});
+
+app.post('/api/schemes/apply', (req: Request, res: Response) => {
+  const { applicantName, phone, aadhaarNumber, schemeId, trade, requestedAmount, location } = req.body;
+
+  const scheme = dbSchemes.find(s => s.id === schemeId) || dbSchemes[0];
+  const newApp = {
+    id: `APP-${scheme.id.toUpperCase().slice(0, 6)}-${Math.floor(1000 + Math.random() * 9000)}`,
+    applicantName: applicantName || 'Vedant Mishra',
+    phone: phone || '+91 94310 44521',
+    aadhaarMasked: aadhaarNumber ? `XXXX-XXXX-${String(aadhaarNumber).slice(-4)}` : 'XXXX-XXXX-4421',
+    schemeId: scheme.id,
+    schemeName: scheme.name,
+    trade: trade || 'Traditional Craft & Rural Enterprise',
+    requestedAmount: Number(requestedAmount) || scheme.maxLoanAmount,
+    subsidyBenefit: scheme.subsidyGrant,
+    status: 'Instant Pre-Approval Verified (Forwarded to Nodal Bank)',
+    appliedAt: new Date().toISOString().split('T')[0],
+    kioskLocation: location || 'Varanasi District Gramin Bank Branch #12'
+  };
+
+  dbSchemeApplications.unshift(newApp);
+
+  res.status(201).json({
+    success: true,
+    message: `Application submitted successfully for ${scheme.name}! Pre-approved under priority queue.`,
+    application: newApp
+  });
+});
+
+app.post('/api/schemes/calculate', (req: Request, res: Response) => {
+  const { amount = 200000, category = 'artisan', tenureYears = 3 } = req.body;
+  const numAmount = Number(amount) || 200000;
+  const numYears = Number(tenureYears) || 3;
+
+  let recommendedScheme = dbSchemes[0];
+  let interestRate = 0.05; // 5%
+  let subsidyPercent = 0;
+
+  if (category === 'women') {
+    recommendedScheme = dbSchemes[3]; // Stand-Up India or NABARD
+    interestRate = 0.06;
+    subsidyPercent = 15;
+  } else if (numAmount > 500000) {
+    recommendedScheme = dbSchemes[2]; // PMEGP
+    interestRate = 0.082;
+    subsidyPercent = 35;
+  } else if (category === 'retail' || category === 'sports' || category === 'ration') {
+    recommendedScheme = dbSchemes[1]; // MUDRA
+    interestRate = 0.08;
+    subsidyPercent = 0;
+  }
+
+  const monthlyRate = interestRate / 12;
+  const totalMonths = numYears * 12;
+  const monthlyEmi = Math.round(
+    (numAmount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) /
+    (Math.pow(1 + monthlyRate, totalMonths) - 1)
+  );
+
+  const estimatedSubsidy = Math.round((numAmount * subsidyPercent) / 100);
+
+  res.json({
+    recommendedScheme,
+    requestedAmount: numAmount,
+    interestRateFormatted: `${(interestRate * 100).toFixed(1)}% p.a.`,
+    tenureYears: numYears,
+    monthlyEmi,
+    estimatedSubsidy,
+    netPayable: (monthlyEmi * totalMonths) - estimatedSubsidy,
+    collateralFree: true
+  });
+});
+
 // ==================== LEARNING & REVIEWS ====================
 app.get('/api/learning', (_req: Request, res: Response) => {
   res.json({ modules: dbLearning });
