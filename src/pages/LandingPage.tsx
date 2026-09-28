@@ -12,7 +12,14 @@ import {
   CheckCircle2, 
   TrendingUp, 
   Award,
-  ChevronRight
+  ChevronRight,
+  Binary,
+  Database,
+  Sigma,
+  Code2,
+  Volume2,
+  Cpu,
+  Terminal
 } from 'lucide-react';
 import { SupportedLanguage, TRANSLATIONS } from '../i18n';
 
@@ -98,19 +105,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentL
                 {/* Main Artisan Photo */}
                 <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white bg-white">
                   <img
-                    src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80"
-                    alt="Sunita Devi, Rural Weaver"
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80"
+                    alt="Vedant Mishra, Lead Systems Engineer & Artisan Guild Lead"
                     className="w-full h-80 object-cover object-top"
                   />
                   <div className="p-4 bg-white space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-[#2D5A27]">Sunita Devi & Mithila SHG</span>
+                      <span className="font-bold text-sm text-[#2D5A27]">Vedant Mishra & Mishra Craft Guild</span>
                       <span className="text-[11px] font-semibold bg-[#2D5A27]/10 text-[#2D5A27] px-2 py-0.5 rounded-md">
-                        Madhubani, Bihar
+                        Varanasi, UP
                       </span>
                     </div>
                     <p className="text-xs text-slate-500">
-                      28 Women Artisans · 480+ Monthly Pan-India Orders · Direct UPI Settlement
+                      Founder & Lead Engineer · 150+ Artisans · Built on AOA, DBMS, MATHS, OOP · Direct UPI
                     </p>
                   </div>
                 </div>
@@ -357,6 +364,122 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentL
         </div>
       </section>
 
+      {/* CS Engineering Core Subjects (AOA, DBMS, MATHS, OOP) Section */}
+      <section className="container mx-auto px-4 max-w-6xl">
+        <div className="bg-gradient-to-br from-[#1E3D1A] to-[#2D5A27] text-white rounded-3xl p-8 sm:p-12 shadow-xl border border-[#E6B325]/30 space-y-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#E6B325]">
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Foundational Engineering Disciplines · Architect: Vedant Mishra</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-serif font-bold text-white tracking-tight">
+                Engineered with Core Computer Science Principles
+              </h2>
+              <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
+                Gram AI connects 650,000 villages through mathematical rigor, algorithmic route optimization, ACID database transactions, and scalable object-oriented software engineering.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setActiveTab('engineering')}
+              className="px-5 py-3 rounded-xl bg-[#E6B325] hover:bg-[#C69516] text-[#2C2C2C] font-bold text-xs sm:text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer shrink-0 self-start md:self-center"
+            >
+              <span>Explore All 4 CS Labs</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* 4 Core Subjects Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            {/* Subject 1: AOA */}
+            <div className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-[#E6B325] flex items-center justify-center font-bold">
+                <Binary className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#E6B325] tracking-wider">Subject 1</span>
+                <h3 className="text-base font-bold text-white">AOA · Algorithms</h3>
+              </div>
+              <p className="text-white/80 leading-relaxed text-[11px]">
+                <strong>Dijkstra Relay Routing</strong> across 154,000 postal nodes in <code>O((V+E)log V)</code>, and <strong>0/1 Knapsack DP</strong> for courier vehicle payload optimization.
+              </p>
+              <div className="text-[10px] font-mono text-emerald-300 pt-1">
+                Time: O((V+E) log V)
+              </div>
+            </div>
+
+            {/* Subject 2: DBMS */}
+            <div className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-blue-400/20 text-blue-300 flex items-center justify-center font-bold">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-blue-300 tracking-wider">Subject 2</span>
+                <h3 className="text-base font-bold text-white">DBMS · Databases</h3>
+              </div>
+              <p className="text-white/80 leading-relaxed text-[11px]">
+                <strong>ACID UPI Escrow</strong> with Write-Ahead Logging (WAL), <strong>3NF Relational Schemas</strong> preventing anomalies, and <strong>B+ Tree Indexing</strong> for sub-2ms queries.
+              </p>
+              <div className="text-[10px] font-mono text-blue-200 pt-1">
+                Guarantees: Strict 3NF & ACID
+              </div>
+            </div>
+
+            {/* Subject 3: MATHS */}
+            <div className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-purple-400/20 text-purple-300 flex items-center justify-center font-bold">
+                <Sigma className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-purple-300 tracking-wider">Subject 3</span>
+                <h3 className="text-base font-bold text-white">MATHS · Discrete Math</h3>
+              </div>
+              <p className="text-white/80 leading-relaxed text-[11px]">
+                <strong>Graph Adjacency Matrices</strong> <code>A^k</code> for $k$-hop logistics reachability, <strong>Markov Chain Transition Matrices</strong> for parcel lifecycle states, and regression vectors.
+              </p>
+              <div className="text-[10px] font-mono text-purple-200 pt-1">
+                Formulas: G=(V,E), P_ij Markov
+              </div>
+            </div>
+
+            {/* Subject 4: OOP */}
+            <div className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-emerald-400/20 text-emerald-300 flex items-center justify-center font-bold">
+                <Code2 className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">Subject 4</span>
+                <h3 className="text-base font-bold text-white">OOP · System Design</h3>
+              </div>
+              <p className="text-white/80 leading-relaxed text-[11px]">
+                Strict <strong>SOLID Principles</strong>, <strong>Strategy Pattern</strong> for interchangeable payment processors, and <strong>State Pattern</strong> for consignment lifecycle state transitions.
+              </p>
+              <div className="text-[10px] font-mono text-emerald-200 pt-1">
+                Patterns: Strategy & State
+              </div>
+            </div>
+          </div>
+
+          {/* Any Language Audio Highlight */}
+          <div className="p-4 rounded-2xl bg-black/30 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <Volume2 className="w-4 h-4 text-[#E6B325]" />
+              <span>
+                Want to listen to these computer science subjects explained aloud in <strong>Hindi, Marathi, Bengali, Tamil, Telugu, Spanish, French, or English</strong>?
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveTab('engineering')}
+              className="text-[#E6B325] hover:underline font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
+            >
+              <span>Listen in Any Language</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Success Stories from the Ground */}
       <section className="container mx-auto px-4 max-w-6xl">
         <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
@@ -387,9 +510,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentL
             </div>
             <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
               <div>
-                <h4 className="font-bold text-slate-900 text-sm">Sunita Devi · Mithila SHG, Bihar</h4>
+                <h4 className="font-bold text-slate-900 text-sm">Vedant Mishra · Mishra Craft Guild, Varanasi</h4>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed italic">
-                  "Before Gram AI, local traders bought our silk dupattas for ₹600 and sold them in Delhi for ₹3,000. Now our women earn ₹1,850 per piece directly. We opened bank accounts for 28 village daughters."
+                  "Before Gram AI, middlemen took 70% of artisan profits. Now our craft guild earns ₹1,850 per piece directly with instant UPI escrow. We combined ancient handloom traditions with classical algorithms (AOA, DBMS, MATHS, OOP) to guarantee fair, dignified income for village families."
                 </p>
               </div>
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">

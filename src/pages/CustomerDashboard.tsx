@@ -40,9 +40,81 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   // Invoice Modal State
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
 
+  // Chat with Artisan State
+  const [artisanChatModalOpen, setArtisanChatModalOpen] = useState(false);
+  const [chatArtisanName, setChatArtisanName] = useState('');
+  const [chatProductTitle, setChatProductTitle] = useState('');
+  const [chatProductId, setChatProductId] = useState('');
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatInputText, setChatInputText] = useState('');
+  const [sendingChatMessage, setSendingChatMessage] = useState(false);
+
   useEffect(() => {
     fetchCustomerOrders();
   }, []);
+
+  const handleOpenArtisanChat = async (artisanName: string, productTitle: string, productId: string) => {
+    setChatArtisanName(artisanName);
+    setChatProductTitle(productTitle);
+    setChatProductId(productId);
+    setChatInputText('');
+    setArtisanChatModalOpen(true);
+
+    try {
+      const res = await fetch('/api/customer-chats?customerId=user-customer-1');
+      const data = await res.json();
+      const existing = data.chats?.find((c: any) => c.productId === productId || c.artisanName.includes(artisanName.split(' ')[0]));
+      if (existing) {
+        setChatMessages(existing.messages || []);
+      } else {
+        setChatMessages([
+          {
+            sender: 'artisan',
+            text: `Namaste! Thank you for ordering ${productTitle}. Feel free to ask any question regarding craft care, organic dye washing, or custom orders!`,
+            time: 'Just now'
+          }
+        ]);
+      }
+    } catch {
+      setChatMessages([]);
+    }
+  };
+
+  const handleSendArtisanMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInputText.trim() || sendingChatMessage) return;
+
+    setSendingChatMessage(true);
+    const newMsg = {
+      sender: 'customer',
+      text: chatInputText,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setChatMessages(prev => [...prev, newMsg]);
+    const textToSend = chatInputText;
+    setChatInputText('');
+
+    try {
+      await fetch('/api/customer-chats/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: currentUser.id,
+          customerName: currentUser.name,
+          artisanId: 'user-artisan-1',
+          artisanName: chatArtisanName,
+          productTitle: chatProductTitle,
+          productId: chatProductId,
+          text: textToSend,
+          sender: 'customer'
+        })
+      });
+    } catch (e) {
+      console.error('Failed to send message', e);
+    } finally {
+      setSendingChatMessage(false);
+    }
+  };
 
   const fetchCustomerOrders = async () => {
     setLoading(true);
@@ -199,13 +271,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                         </div>
                         <div className="flex items-center justify-between pt-1">
                           <span className="font-serif font-bold text-slate-800">₹{item.price} × {item.quantity}</span>
-                          <button
-                            onClick={() => handleOpenReview(item.productId, item.title)}
-                            className="text-[11px] font-semibold text-[#2D5A27] hover:underline flex items-center gap-1"
-                          >
-                            <Star className="w-3 h-3 text-[#E6B325] fill-current" />
-                            <span>Leave Review</span>
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleOpenArtisanChat(item.artisanName, item.title, item.productId)}
+                              className="text-[11px] font-semibold text-slate-600 hover:text-[#2D5A27] flex items-center gap-1 cursor-pointer"
+                            >
+                              <MessageSquare className="w-3 h-3 text-[#2D5A27]" />
+                              <span>Chat with Artisan</span>
+                            </button>
+                            <button
+                              onClick={() => handleOpenReview(item.productId, item.title)}
+                              className="text-[11px] font-semibold text-[#2D5A27] hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <Star className="w-3 h-3 text-[#E6B325] fill-current" />
+                              <span>Leave Review</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -395,6 +476,72 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             >
               Close Invoice
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Chat with Artisan Modal */}
+      {artisanChatModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 text-[#2C2C2C] flex flex-col h-[520px]">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#2D5A27] text-[#E6B325] flex items-center justify-center font-bold">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Chat with {chatArtisanName}</h3>
+                  <p className="text-[11px] text-slate-500">Regarding: {chatProductTitle}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setArtisanChatModalOpen(false)} 
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Chat Body */}
+            <div className="flex-1 overflow-y-auto py-3 space-y-2.5 text-xs bg-[#F8F5F0]/60 p-3 rounded-2xl my-2 border border-slate-100">
+              {chatMessages.map((m: any, idx: number) => {
+                const isCustomer = m.sender === 'customer';
+                return (
+                  <div key={idx} className={`flex ${isCustomer ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`p-3 rounded-2xl max-w-[82%] leading-relaxed ${
+                      isCustomer ? 'bg-[#2D5A27] text-white shadow-xs' : 'bg-white text-slate-800 border border-slate-200 shadow-2xs'
+                    }`}>
+                      <div className="flex items-center justify-between text-[10px] opacity-70 mb-1">
+                        <span className="font-semibold">{isCustomer ? 'You (Arjun)' : chatArtisanName}</span>
+                        <span>{m.time}</span>
+                      </div>
+                      <p>{m.text}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Input Form */}
+            <form onSubmit={handleSendArtisanMessage} className="flex gap-2 pt-2 border-t border-slate-100">
+              <input
+                type="text"
+                value={chatInputText}
+                onChange={(e) => setChatInputText(e.target.value)}
+                placeholder="Ask about custom dimensions, washing care, or wedding bulk orders..."
+                className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+              />
+              <button
+                type="submit"
+                disabled={!chatInputText.trim() || sendingChatMessage}
+                className="px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+              >
+                <span>Send</span>
+              </button>
+            </form>
+
           </div>
         </div>
       )}

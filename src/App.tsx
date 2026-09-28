@@ -13,6 +13,7 @@ import { EntrepreneurDashboard } from './pages/EntrepreneurDashboard';
 import { CustomerDashboard } from './pages/CustomerDashboard';
 import { LogisticsTrackingPage } from './pages/LogisticsTrackingPage';
 import { LearningHubPage } from './pages/LearningHubPage';
+import { EngineeringCorePage } from './pages/EngineeringCorePage';
 import { AIAssistantPage } from './pages/AIAssistantPage';
 import { SupportPage } from './pages/SupportPage';
 
@@ -93,6 +94,12 @@ function AppContent() {
 
         {activeTab === 'learning' && (
           <LearningHubPage />
+        )}
+
+        {activeTab === 'engineering' && (
+          <EngineeringCorePage
+            setActiveTab={setActiveTab}
+          />
         )}
 
         {activeTab === 'ai-assistant' && (

@@ -18,7 +18,7 @@ export interface Product {
   artisanName: string;
   artisanLocation: string;
   title: string;
-  category: 'textiles' | 'spices' | 'pottery' | 'honey_oils' | 'bamboo_wood';
+  category: 'clothes' | 'sports' | 'ration' | 'textiles' | 'spices' | 'pottery' | 'honey_oils' | 'bamboo_wood' | 'handicrafts' | string;
   price: number;
   originalPrice?: number;
   stock: number;
@@ -80,10 +80,10 @@ export interface Review {
 export interface LearningModule {
   id: string;
   title: string;
-  category: 'finance' | 'packaging' | 'marketing' | 'schemes' | 'quality';
+  category: 'finance' | 'packaging' | 'marketing' | 'schemes' | 'quality' | 'aoa_algorithms' | 'dbms_database' | 'maths_applied' | 'oop_architecture';
   duration: string;
   language: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced';
+  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Core Engineering';
   summary: string;
   keyPoints: string[];
   audioScript: string;

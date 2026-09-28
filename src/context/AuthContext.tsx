@@ -13,16 +13,16 @@ interface AuthContextType {
 
 const DEFAULT_USER: User = {
   id: 'user-artisan-1',
-  name: 'Sunita Devi',
-  email: 'sunita@gramai.org',
+  name: 'Vedant Mishra',
+  email: 'vedant.mishra@gramai.in',
   role: 'entrepreneur',
-  phone: '+91 98234 56789',
-  location: 'Madhubani District',
-  state: 'Bihar',
-  avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=250&q=80',
-  bio: 'Master artisan in Madhubani traditional hand-painted Tussar silk & cotton textiles, leader of Mithila Women Self-Help Group (28 weavers).',
-  shgName: 'Mithila Shakti SHG',
-  joinedDate: '2024-03-12'
+  phone: '+91 94310 44521',
+  location: 'Varanasi Craft & Tech Hub',
+  state: 'Uttar Pradesh',
+  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
+  bio: 'Founder & Lead Engineer at Gram AI. Integrating Core Computer Science & Engineering (AOA, DBMS, Applied MATHS, OOP) with grassroots rural commerce to ensure 86%+ direct UPI payouts for Indian artisans.',
+  shgName: 'Mishra Rural Guild & Tech Labs',
+  joinedDate: '2024-01-01'
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

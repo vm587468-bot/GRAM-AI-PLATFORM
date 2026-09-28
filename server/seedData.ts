@@ -3,16 +3,16 @@ import { User, Product, Order, LearningModule, SupportTicket, Review } from '../
 export const INITIAL_USERS: User[] = [
   {
     id: 'user-artisan-1',
-    name: 'Sunita Devi',
-    email: 'sunita@gramai.org',
+    name: 'Vedant Mishra',
+    email: 'vedant.mishra@gramai.in',
     role: 'entrepreneur',
-    phone: '+91 98234 56789',
-    location: 'Madhubani District',
-    state: 'Bihar',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=250&q=80',
-    bio: 'Master artisan in Madhubani traditional hand-painted Tussar silk & cotton textiles, leader of Mithila Women Self-Help Group (28 weavers).',
-    shgName: 'Mithila Shakti SHG',
-    joinedDate: '2024-03-12'
+    phone: '+91 94310 44521',
+    location: 'Varanasi Craft & Tech Hub',
+    state: 'Uttar Pradesh',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
+    bio: 'Founder & Lead Engineer at Gram AI. Integrating Core Computer Science & Engineering (AOA, DBMS, Applied MATHS, OOP) with grassroots rural commerce to ensure 86%+ direct UPI payouts for Indian artisans.',
+    shgName: 'Mishra Rural Guild & Tech Labs',
+    joinedDate: '2024-01-01'
   },
   {
     id: 'user-artisan-2',
@@ -57,8 +57,8 @@ export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-1',
     artisanId: 'user-artisan-1',
-    artisanName: 'Sunita Devi (Mithila Shakti SHG)',
-    artisanLocation: 'Madhubani, Bihar',
+    artisanName: 'Vedant Mishra (Mishra Craft Guild)',
+    artisanLocation: 'Varanasi, Uttar Pradesh',
     title: 'Hand-Painted Madhubani Tussar Silk Dupatta',
     category: 'textiles',
     price: 1850,
@@ -69,7 +69,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     reviewsCount: 38,
     imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
     description: 'Exquisite 100% natural Tussar silk dupatta featuring authentic Kohbar and peacock motifs painstakingly hand-painted using natural vegetable dyes, twig brushes, and nib pens.',
-    artisanStory: 'Sunita learned Madhubani art from her grandmother. By selling directly through Gram AI, her SHG of 28 village women now earns 3x more than they did through local commission brokers.',
+    artisanStory: 'Curated by Vedant Mishra, combining generational artisan craftsmanship with algorithmic logistics and transparent database accounting to eliminate middlemen and empower rural creators.',
     materials: ['Pure Tussar Silk', 'Natural Indigo', 'Turmeric Pigments', 'Lampblack'],
     inStock: true,
     featured: true,
@@ -347,6 +347,177 @@ export const INITIAL_PRODUCTS: Product[] = [
     inStock: true,
     featured: true,
     fairTradePercent: 86
+  },
+  // CLOTHES CATEGORY
+  {
+    id: 'prod-clothes-1',
+    artisanId: 'user-artisan-1',
+    artisanName: 'Vedant Mishra (Mishra Craft Guild)',
+    artisanLocation: 'Varanasi, Uttar Pradesh',
+    title: 'Hand-Tailored Varanasi Khadi Cotton Kurta & Trousers Set',
+    category: 'clothes',
+    price: 1550,
+    originalPrice: 1999,
+    stock: 24,
+    unit: 'kurta & trouser set',
+    rating: 4.9,
+    reviewsCount: 44,
+    imageUrl: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=80',
+    description: '100% handspun Khadi cotton tailored for all-day breathability and comfort. Hand-loomed in Varanasi village clusters with shell buttons and contrast piping.',
+    artisanStory: 'Crafted under the direction of Vedant Mishra by rural handloom weavers in Varanasi. Every garment sold provides 86% direct payment to artisan families.',
+    materials: ['Handspun Khadi Cotton', 'Natural Mother-of-Pearl Shell Buttons'],
+    inStock: true,
+    featured: true,
+    fairTradePercent: 86
+  },
+  {
+    id: 'prod-clothes-2',
+    artisanId: 'user-artisan-6',
+    artisanName: 'Santosh Devi & Kutch Guild',
+    artisanLocation: 'Dhamadka, Kutch, Gujarat',
+    title: 'Ajrakh Hand-Block Printed Cotton Shirt & Ethnic Top',
+    category: 'clothes',
+    price: 1250,
+    originalPrice: 1650,
+    stock: 18,
+    unit: 'piece',
+    rating: 4.8,
+    reviewsCount: 31,
+    imageUrl: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=800&q=80',
+    description: '16-step traditional Ajrakh resist block printing using natural indigo, harda, and iron rust minerals on 100% fine cotton fabric.',
+    artisanStory: 'Sustains a 400-year-old riverbank printing heritage in Kutch with guaranteed living wages and zero-chemical runoff.',
+    materials: ['Pure Cambric Cotton', 'Natural Harda', 'Natural Indigo'],
+    inStock: true,
+    featured: false,
+    fairTradePercent: 87
+  },
+  // SPORTS CATEGORY
+  {
+    id: 'prod-sports-1',
+    artisanId: 'user-artisan-15',
+    artisanName: 'Bashir Ahmad & Sons Willow Works',
+    artisanLocation: 'Bijbehara, Anantnag, Jammu & Kashmir',
+    title: 'Handcrafted Kashmir Willow Cricket Bat (Grade-1 Pro Willow)',
+    category: 'sports',
+    price: 1890,
+    originalPrice: 2490,
+    stock: 22,
+    unit: 'full-size cricket bat',
+    rating: 5.0,
+    reviewsCount: 67,
+    imageUrl: 'https://images.unsplash.com/photo-1531415074868-036b10554f03?auto=format&fit=crop&w=800&q=80',
+    description: 'Genuine air-seasoned Kashmir willow handcrafted along the Jhelum valley. Features 6+ straight grains, pronounced convex spine, lightweight balance, and Singapore cane 3-piece handle.',
+    artisanStory: 'Crafted by generational bat-makers whose craft was squeezed by commercial middlemen. Gram AI brings verified direct factory pricing to budding athletes and sports clubs nationwide.',
+    materials: ['Selected Grade-1 Kashmir Willow', 'Singapore Cane Handle', 'Rubber Chevron Grip'],
+    inStock: true,
+    featured: true,
+    fairTradePercent: 88
+  },
+  {
+    id: 'prod-sports-2',
+    artisanId: 'user-artisan-16',
+    artisanName: 'Kaveri Natural Sports Co-op',
+    artisanLocation: 'Alappuzha, Kerala',
+    title: 'Natural Rubber & Organic Jute Anti-Slip Yoga Mat (6mm Extra Cushion)',
+    category: 'sports',
+    price: 1150,
+    originalPrice: 1550,
+    stock: 28,
+    unit: 'mat with cotton sling strap',
+    rating: 4.9,
+    reviewsCount: 42,
+    imageUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=800&q=80',
+    description: 'Eco-friendly workout and yoga mat engineered from sustainable coastal jute fibers bonded to textured tree rubber. Free of PVC, toxic glues, and chemical phthalates.',
+    artisanStory: 'Provides clean livelihood opportunities for 35 coastal women coir workers, blending ancient wellness materials with modern fitness durability.',
+    materials: ['Natural Tree Rubber', 'Organic Woven Jute Fiber', 'Biodegradable Cotton'],
+    inStock: true,
+    featured: true,
+    fairTradePercent: 85
+  },
+  {
+    id: 'prod-sports-3',
+    artisanId: 'user-artisan-17',
+    artisanName: 'Suraj Woodworks Collective',
+    artisanLocation: 'Meerut, Uttar Pradesh',
+    title: 'Solid Sheesham Wood Championship Carrom Board with Coins (32-Inch)',
+    category: 'sports',
+    price: 2400,
+    originalPrice: 3200,
+    stock: 14,
+    unit: 'board with wooden coins & striker',
+    rating: 4.8,
+    reviewsCount: 35,
+    imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
+    description: 'Tournament grade heavy Sheesham wood border (3x2 inch) with super-smooth French polished English Birch ply playing surface for lightning rebound speed.',
+    artisanStory: 'Crafted in Meerut cottage workshops famous for sports carpentry. Sold directly to gaming enthusiasts with shock-absorbent eco-packaging.',
+    materials: ['Solid Sheesham Wood Border', 'Smooth Birch Ply', 'Handmade Wood Coins'],
+    inStock: true,
+    featured: false,
+    fairTradePercent: 86
+  },
+  // RATION & GROCERIES CATEGORY
+  {
+    id: 'prod-ration-1',
+    artisanId: 'user-artisan-18',
+    artisanName: 'Chambal Kisan SHG & Farmers',
+    artisanLocation: 'Sehore, Madhya Pradesh',
+    title: 'Stone-Ground Sharbati Whole Wheat Atta & Desi Chana Dal (5kg Ration Kit)',
+    category: 'ration',
+    price: 490,
+    originalPrice: 620,
+    stock: 50,
+    unit: '5kg pack (3kg Atta + 2kg Dal)',
+    rating: 5.0,
+    reviewsCount: 82,
+    imageUrl: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80',
+    description: 'Chakki stone-ground whole wheat atta with 100% natural wheat germ and bran retained, coupled with unpolished desi chana dal for daily wholesome nutrition.',
+    artisanStory: 'Direct from Sehore organic farmer cluster practicing zero chemical cultivation. Tested for zero synthetic fertilizers and pesticide residues.',
+    materials: ['MP Sharbati Whole Wheat', 'Unpolished Desi Chana Dal', 'Zero Preservatives'],
+    inStock: true,
+    featured: true,
+    fairTradePercent: 87
+  },
+  {
+    id: 'prod-ration-2',
+    artisanId: 'user-artisan-19',
+    artisanName: 'Doon Organic Farmers Guild',
+    artisanLocation: 'Dehradun Valley, Uttarakhand',
+    title: 'Traditional Dehradun Basmati Rice & Organic Foxtail Millets (2kg Ration Pack)',
+    category: 'ration',
+    price: 380,
+    originalPrice: 480,
+    stock: 40,
+    unit: '2kg pack',
+    rating: 4.9,
+    reviewsCount: 56,
+    imageUrl: 'https://images.unsplash.com/photo-1514733670139-4d87a1941d55?auto=format&fit=crop&w=800&q=80',
+    description: 'Naturally aged, extra-long grain Himalayan Basmati rice irrigated with glacial mountain runoff, paired with nutrient-dense, gluten-free Foxtail millet (Kangni).',
+    artisanStory: 'Small mountain farmers preserving indigenous seed varieties. Farm-gate collection with direct digital payments via Gram AI ledger.',
+    materials: ['Aged Dehradun Basmati Rice', 'Organic Foxtail Millet (Kangni)'],
+    inStock: true,
+    featured: true,
+    fairTradePercent: 86
+  },
+  {
+    id: 'prod-ration-3',
+    artisanId: 'user-artisan-20',
+    artisanName: 'Bansi Gir Goshala & Oil Mill',
+    artisanLocation: 'Junagadh, Gujarat',
+    title: 'Desi Gir Cow A2 Bilona Ghee & Cold-Pressed Sesame Oil (1L Kitchen Duo)',
+    category: 'ration',
+    price: 1350,
+    originalPrice: 1750,
+    stock: 25,
+    unit: '1L duo (500ml Ghee + 500ml Oil)',
+    rating: 5.0,
+    reviewsCount: 71,
+    imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+    description: 'Vedic bilona churned A2 cultured butter ghee from grass-fed indigenous Gir cows, paired with slow wood-pressed unrefined black sesame (til) oil.',
+    artisanStory: 'Supports ethical native cow preservation and traditional bull-driven wooden ghani pressing in Saurashtra villages.',
+    materials: ['Pure A2 Gir Cow Milk Butter', 'Cold-Pressed Sesame Seeds'],
+    inStock: true,
+    featured: false,
+    fairTradePercent: 89
   }
 ];
 
@@ -365,7 +536,7 @@ export const INITIAL_ORDERS: Order[] = [
         price: 1850,
         quantity: 1,
         imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
-        artisanName: 'Sunita Devi'
+        artisanName: 'Vedant Mishra'
       },
       {
         productId: 'prod-3',
@@ -492,6 +663,78 @@ export const INITIAL_LEARNING_MODULES: LearningModule[] = [
     audioScript: 'International conscious consumers are hungry for pure, unadulterated village spices. But export requires strict pesticide residue tests. Here is how Gram AI aggregates testing to lower individual certification costs...',
     instructor: 'Dr. K. Ramanathan (Agri-Commodity Certification Specialist)',
     icon: 'Award'
+  },
+  {
+    id: 'learn-aoa',
+    title: 'AOA: Algorithm Design in Rural Logistics & Knapsack Routing',
+    category: 'aoa_algorithms',
+    duration: '22 mins',
+    language: 'Multilingual (18+ Languages)',
+    level: 'Core Engineering',
+    summary: 'Deep dive into how Dijkstra & Bellman-Ford O((V+E) log V) algorithms optimize parcel routing across India Post 154,000 branch hubs, plus 0/1 Knapsack DP for vehicle packing.',
+    keyPoints: [
+      'Dijkstra shortest path algorithm across rural India Post relay nodes: O((V + E) log V)',
+      'Dynamic Programming 0/1 Knapsack O(N·W) for courier vehicle weight vs value optimization',
+      'Asymptotic time & space complexity analysis (Big-O, Omega, Theta)',
+      'Greedy heuristic vs Optimal sub-structure in hub consignment transfers'
+    ],
+    audioScript: 'Welcome to the Analysis of Algorithms module designed by Vedant Mishra. In this lecture, we examine how Gram AI utilizes Dijkstra shortest-path algorithms to calculate optimal transit routes between village self-help groups and district postal nodal centers. We also model vehicle consignment loading as a 0/1 Knapsack problem where we maximize artisan shipment value subject to courier weight constraints.',
+    instructor: 'Vedant Mishra (Lead Systems Engineer)',
+    icon: 'Binary'
+  },
+  {
+    id: 'learn-dbms',
+    title: 'DBMS: Relational 3NF Schemas, ACID Escrow & B+ Tree Indexing',
+    category: 'dbms_database',
+    duration: '20 mins',
+    language: 'Multilingual (18+ Languages)',
+    level: 'Core Engineering',
+    summary: 'Explore Gram AI relational database architecture: Entity-Relationship modeling, 3NF normalization, ACID transaction guarantees for UPI escrow, and B+ Tree indexing.',
+    keyPoints: [
+      'ACID transactional guarantees for NPCI UPI Escrow settlement',
+      'Third Normal Form (3NF) schema decomposition preventing insert, update & delete anomalies',
+      'B+ Tree clustered and secondary index lookups providing sub-millisecond retrieval latency',
+      'Two-Phase Locking (2PL) and Write-Ahead Logging (WAL) for fault-tolerant state recovery'
+    ],
+    audioScript: 'Welcome to the Database Management Systems lecture by Vedant Mishra. Financial integrity in UPI payments demands strict ACID compliance: Atomicity ensures funds are never lost between bank debits and escrow reserves. We employ Third Normal Form normalization across users, orders, and ledger tables, with B-Plus Tree indices providing sub-millisecond search across rural craft catalogs.',
+    instructor: 'Vedant Mishra (Lead Systems Engineer)',
+    icon: 'Database'
+  },
+  {
+    id: 'learn-maths',
+    title: 'MATHS: Graph Theory, Markov Chains & Demand Forecasting',
+    category: 'maths_applied',
+    duration: '19 mins',
+    language: 'Multilingual (18+ Languages)',
+    level: 'Core Engineering',
+    summary: 'Applied Discrete Mathematics in commerce: Graph adjacency matrices for logistics networks, Markov state machines for order lifecycle, and linear regression vectors.',
+    keyPoints: [
+      'Graph Theory: Directed Acyclic Graphs (DAGs) and adjacency matrices for 150k+ relay hubs',
+      'Discrete probability & Markov Chain transition matrices for parcel tracking states',
+      'Linear algebra & vector dot products for craft recommendation matrices',
+      'Combinatorics & recurrence relations in supply chain inventory planning'
+    ],
+    audioScript: 'Welcome to Applied Mathematics for Systems Engineering by Vedant Mishra. In this module, we model the national rural postal network as a weighted directed graph G equals V, E. Using adjacency matrices, we compute transitive closures and paths. Order fulfillment is formalized as a discrete-time Markov chain with transition states from Placed to In-Transit to Delivered.',
+    instructor: 'Vedant Mishra (Lead Systems Engineer)',
+    icon: 'Sigma'
+  },
+  {
+    id: 'learn-oop',
+    title: 'OOP: SOLID Principles, Design Patterns & Lifecycle Encapsulation',
+    category: 'oop_architecture',
+    duration: '21 mins',
+    language: 'Multilingual (18+ Languages)',
+    level: 'Core Engineering',
+    summary: 'Software engineering with Object-Oriented Programming: Single Responsibility, Open-Closed principle, Strategy Pattern for payment processors, and State Pattern for order lifecycles.',
+    keyPoints: [
+      'SOLID design principles applied to clean full-stack TypeScript backend architecture',
+      'Strategy Pattern: Polymorphic UpiPaymentStrategy, CardStrategy, and EscrowStrategy',
+      'State Pattern: Encapsulated lifecycle transitions for orders and deliveries',
+      'Inheritance vs Composition in product catalog hierarchy'
+    ],
+    audioScript: 'Welcome to Object-Oriented Programming architecture by Vedant Mishra. In Gram AI, maintainability and scalability stem from strict adherence to SOLID principles. The Single Responsibility Principle ensures our payment services remain decoupled from order fulfillment. We implement the Strategy Pattern to dynamically interchange UPI and escrow settlement mechanisms without modifying core order processing classes.',
+    instructor: 'Vedant Mishra (Lead Systems Engineer)',
+    icon: 'Layers'
   }
 ];
 
@@ -503,10 +746,10 @@ export const INITIAL_REVIEWS: Review[] = [
     userName: 'Arjun Sharma',
     userAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80',
     rating: 5,
-    comment: 'The craftsmanship of this Madhubani Tussar silk dupatta is astonishing. The fine line detailing on the border with natural dyes has such depth. Came with a handwritten card from Sunita Devi!',
+    comment: 'The craftsmanship of this Madhubani Tussar silk dupatta is astonishing. The fine line detailing on the border with natural dyes has such depth. Came with a handwritten card from Vedant Mishra and the weavers!',
     date: '2026-09-20',
     verifiedPurchase: true,
-    artisanReply: 'Thank you Arjun ji! Knowing that our Mithila heritage is treasured in Bengaluru brings so much happiness to our women weavers in Madhubani.'
+    artisanReply: 'Thank you Arjun ji! Knowing that our heritage craft is treasured in Bengaluru brings so much happiness to our artisan guild.'
   },
   {
     id: 'rev-2',
@@ -537,7 +780,7 @@ export const INITIAL_TICKETS: SupportTicket[] = [
   {
     id: 'TCK-1042',
     userId: 'user-artisan-1',
-    userName: 'Sunita Devi',
+    userName: 'Vedant Mishra',
     role: 'entrepreneur',
     subject: 'Assistance requested for bulk packaging boxes for festive export',
     category: 'logistics',
@@ -547,12 +790,12 @@ export const INITIAL_TICKETS: SupportTicket[] = [
     messages: [
       {
         sender: 'user',
-        text: 'Namaste, our SHG has received 45 orders for Diwali gifting. Can the district hub provide 50 extra corrugated honeycomb sleeves by Monday?',
+        text: 'Namaste, our craft guild has received 45 orders for Diwali gifting. Can the district hub provide 50 extra corrugated honeycomb sleeves by Monday?',
         time: '08:30 AM'
       },
       {
         sender: 'support',
-        text: 'Namaste Sunita ji! Your request has been assigned to Gram Coordinator Suresh at Madhubani Hub. The sleeves will be delivered to your village center tomorrow at 11 AM.',
+        text: 'Namaste Vedant ji! Your request has been assigned to Gram Coordinator Suresh. The sleeves will be delivered to your hub tomorrow at 11 AM.',
         time: '09:15 AM'
       }
     ]

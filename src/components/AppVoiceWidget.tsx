@@ -12,8 +12,28 @@ import {
   Bot, 
   Navigation, 
   HelpCircle,
-  MessageSquare
+  MessageSquare,
+  Globe
 } from 'lucide-react';
+
+interface AppVoiceWidgetProps {
+  currentTab: string;
+  setActiveTab: (tab: string) => void;
+  onTrackOrder: (trackingId: string) => void;
+  onFilterMarketplace: (search: string) => void;
+}
+
+interface ChatItem {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  action?: {
+    type: 'navigate' | 'search_product' | 'track_order' | 'open_cart';
+    target?: string;
+  };
+}
+
+import { UNIVERSAL_AUDIO_LANGUAGES } from '../audioLanguages';
 
 interface AppVoiceWidgetProps {
   currentTab: string;
@@ -42,6 +62,8 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [selectedVoiceLang, setSelectedVoiceLang] = useState('hi-IN');
+  const [customVoiceLangName, setCustomVoiceLangName] = useState('');
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -49,15 +71,16 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
     {
       id: 'init-msg',
       sender: 'assistant',
-      text: "Namaste! I am your Gram AI Voice Assistant. Speak or type any query about our products, UPI payments, postal tracking, or village artisan support."
+      text: "Namaste! I am your Gram AI Voice Assistant. Speak or type any query about our products, UPI payments, postal tracking, or the CS Engineering Architecture (AOA, DBMS, MATHS, OOP) designed by Vedant Mishra."
     }
   ]);
 
   const [suggestedQueries, setSuggestedQueries] = useState<string[]>([
     'How does UPI escrow protect buyers and artisans?',
     'Track my parcel GRAM-88219',
-    'Show me handloom sarees and textiles',
-    'How do village artisans get paid?'
+    'Explain AOA Dijkstra routing in logistics',
+    'How does DBMS ACID escrow protect payments?',
+    'Show me handloom sarees and textiles'
   ]);
 
   const recognitionRef = useRef<any>(null);
@@ -86,7 +109,8 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.lang = 'en-IN'; // Indian English / Hindi mix
+      const recognitionCode = selectedVoiceLang !== 'custom' ? selectedVoiceLang : 'hi-IN';
+      recognition.lang = recognitionCode;
 
       recognition.onstart = () => {
         setIsRecording(true);
@@ -113,19 +137,56 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
     }
   };
 
-  // Text-To-Speech Output
-  const speakText = (text: string) => {
+  // Text-To-Speech Output in Selected Language
+  const speakText = async (text: string) => {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    try {
+      let textToSpeak = text;
+      const isCustom = selectedVoiceLang === 'custom';
+      const targetLangName = isCustom ? (customVoiceLangName.trim() || 'Hindi') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label || 'Hindi');
 
-    window.speechSynthesis.speak(utterance);
+      // If user selected non-English or custom, translate to spoken native phrasing first
+      if (!selectedVoiceLang.startsWith('en') || isCustom) {
+        const res = await fetch('/api/voice/speak-in-language', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            targetLanguage: targetLangName,
+            languageCode: isCustom ? 'custom' : selectedVoiceLang
+          })
+        });
+        const data = await res.json();
+        if (data.spokenAudioScript) {
+          textToSpeak = data.spokenAudioScript;
+        }
+      }
+
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      const synthesisCode = isCustom ? 'hi-IN' : selectedVoiceLang;
+      utterance.lang = synthesisCode;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+
+      if (window.speechSynthesis.getVoices) {
+        const voices = window.speechSynthesis.getVoices();
+        const matched = voices.find(v => v.lang.toLowerCase().startsWith(synthesisCode.slice(0, 2).toLowerCase()));
+        if (matched) utterance.voice = matched;
+      }
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn('Speech error', e);
+      const fallbackUtterance = new SpeechSynthesisUtterance(text);
+      fallbackUtterance.lang = selectedVoiceLang.startsWith('en') ? selectedVoiceLang : 'en-US';
+      window.speechSynthesis.speak(fallbackUtterance);
+    }
   };
 
   const stopSpeaking = () => {
@@ -151,11 +212,14 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
     setLoading(true);
 
     try {
+      const selectedObj = UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang);
+      const queryLang = selectedVoiceLang === 'custom' ? (customVoiceLangName || 'English') : (selectedObj?.label || 'English');
       const res = await fetch('/api/ai/app-voice-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: text,
+          language: queryLang,
           currentTab
         })
       });
@@ -180,7 +244,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
         speakText(botReply);
       }
 
-      // Execute app actions (navigation or search or tracking)
+      // Execute app actions
       if (data.action) {
         handleExecuteAction(data.action);
       }
@@ -190,7 +254,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
       const fallbackItem: ChatItem = {
         id: `bot-${Date.now()}`,
         sender: 'assistant',
-        text: "Gram AI connects village producers directly with conscious buyers. You can explore the marketplace, track consignments, or view the artisan dashboard!"
+        text: "Gram AI connects village producers directly with conscious buyers. Designed by Vedant Mishra, the system incorporates AOA Dijkstra logistics, 3NF ACID escrow, Markov tracking, and clean OOP architecture!"
       };
       setHistory(prev => [...prev, fallbackItem]);
       if (autoSpeak) speakText(fallbackItem.text);
@@ -242,41 +306,75 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
         <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm sm:max-w-md bg-white rounded-3xl shadow-2xl border border-[#2D5A27]/25 overflow-hidden flex flex-col max-h-[85vh] text-[#2C2C2C] animate-in fade-in slide-in-from-bottom-5 duration-200">
           
           {/* Header */}
-          <div className="p-4 bg-[#2D5A27] text-white flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-[#E6B325] text-[#2C2C2C] flex items-center justify-center font-bold shadow-xs">
-                <Sparkles className="w-5 h-5" />
+          <div className="p-4 bg-[#2D5A27] text-white space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#E6B325] text-[#2C2C2C] flex items-center justify-center font-bold shadow-xs">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm leading-tight">Gram AI Voice Copilot</h3>
+                  <p className="text-[11px] text-white/80">Answers questions & speaks in any language</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-sm leading-tight">Gram AI Voice Copilot</h3>
-                <p className="text-[11px] text-white/80">Speaks answers & navigates app for you</p>
+
+              <div className="flex items-center gap-1.5">
+                {/* Voice Sound Toggle */}
+                <button
+                  onClick={() => {
+                    if (isSpeaking) stopSpeaking();
+                    setAutoSpeak(!autoSpeak);
+                  }}
+                  className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                    autoSpeak ? 'bg-white/20 text-[#E6B325]' : 'text-white/60 hover:bg-white/10'
+                  }`}
+                  title={autoSpeak ? 'Voice output is ON (Auto-reads responses)' : 'Voice output is MUTED'}
+                >
+                  {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+
+                <button
+                  onClick={() => {
+                    stopSpeaking();
+                    setIsOpen(false);
+                  }}
+                  className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              {/* Voice Sound Toggle */}
-              <button
-                onClick={() => {
-                  if (isSpeaking) stopSpeaking();
-                  setAutoSpeak(!autoSpeak);
-                }}
-                className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                  autoSpeak ? 'bg-white/20 text-[#E6B325]' : 'text-white/60 hover:bg-white/10'
-                }`}
-                title={autoSpeak ? 'Voice output is ON (Auto-reads responses)' : 'Voice output is MUTED'}
-              >
-                {autoSpeak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              </button>
+            {/* Language Selector Pill */}
+            <div className="space-y-1.5 bg-black/20 p-2 rounded-xl text-xs">
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-[#E6B325] ml-1 shrink-0" />
+                <span className="text-[10px] text-white/80 uppercase tracking-wider font-semibold">Voice Language:</span>
+                <select
+                  value={selectedVoiceLang}
+                  onChange={(e) => {
+                    stopSpeaking();
+                    setSelectedVoiceLang(e.target.value);
+                  }}
+                  className="bg-white/10 text-white text-[11px] font-semibold px-2 py-1 rounded-lg border border-white/20 focus:outline-none cursor-pointer flex-1"
+                >
+                  {UNIVERSAL_AUDIO_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code} className="text-slate-900 bg-white">
+                      {l.label} ({l.native}) · {l.region}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              <button
-                onClick={() => {
-                  stopSpeaking();
-                  setIsOpen(false);
-                }}
-                className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {selectedVoiceLang === 'custom' && (
+                <input
+                  type="text"
+                  placeholder="Type ANY custom language..."
+                  value={customVoiceLangName}
+                  onChange={(e) => setCustomVoiceLangName(e.target.value)}
+                  className="w-full px-2.5 py-1 text-xs bg-white text-slate-900 rounded-lg border border-[#E6B325] focus:outline-none placeholder:text-slate-400"
+                />
+              )}
             </div>
           </div>
 
@@ -285,7 +383,9 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
             <div className="bg-[#E6B325]/20 border-b border-[#E6B325]/40 px-4 py-1.5 flex items-center justify-between text-xs text-[#2D5A27]">
               <span className="flex items-center gap-1.5 font-semibold text-[11px]">
                 <Volume2 className="w-3.5 h-3.5 animate-pulse text-[#2D5A27]" />
-                <span>Speaking answer aloud...</span>
+                <span>
+                  Speaking in {selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom Language') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label.split(' ')[0] || 'Selected Language')}...
+                </span>
               </span>
               <button
                 onClick={stopSpeaking}
@@ -297,7 +397,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
           )}
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F8F5F0]/50 text-xs min-h-[260px] max-h-[380px]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F8F5F0]/50 text-xs min-h-[240px] max-h-[360px]">
             {history.map((item) => {
               const isBot = item.sender === 'assistant';
               return (
@@ -327,7 +427,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
                           className="hover:text-[#2D5A27] flex items-center gap-1 font-semibold cursor-pointer"
                         >
                           <Volume2 className="w-3 h-3 text-[#2D5A27]" />
-                          <span>Replay Audio</span>
+                          <span>Listen Audio</span>
                         </button>
 
                         {item.action && item.action.type && (
@@ -349,7 +449,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
             {loading && (
               <div className="flex items-center gap-2 text-xs text-slate-500 py-1">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-[#2D5A27]" />
-                <span>Thinking and preparing voice answer...</span>
+                <span>Preparing answer in your selected language...</span>
               </div>
             )}
 
@@ -392,7 +492,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
                     ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-200' 
                     : 'bg-[#2D5A27] text-white hover:bg-[#1E3D1A]'
                 }`}
-                title={isRecording ? 'Listening... click to stop' : 'Tap to speak your query'}
+                title={isRecording ? 'Listening... click to stop' : `Tap to speak in ${selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label.split(' ')[0] || 'Selected Language')}`}
               >
                 {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-[#E6B325]" />}
               </button>
@@ -401,7 +501,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={isRecording ? 'Listening to voice...' : 'Ask anything about the app or products...'}
+                placeholder={isRecording ? `Listening in ${selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label.split(' ')[0] || 'Selected Language')}...` : 'Ask anything about products or CS architecture...'}
                 className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#2D5A27] placeholder-slate-400"
               />
 
@@ -417,7 +517,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
             {isRecording && (
               <p className="text-[10px] text-rose-600 font-semibold mt-1 px-1 flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
-                <span>Listening now... speak your question about Gram AI!</span>
+                <span>Listening now in {selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom Language') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label || 'Selected Language')}... Speak clearly!</span>
               </p>
             )}
           </div>

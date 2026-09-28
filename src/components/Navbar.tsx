@@ -12,7 +12,8 @@ import {
   ChevronDown,
   PhoneCall,
   Package,
-  Store
+  Store,
+  Binary
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -54,7 +55,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'customer', label: t.navCustomerPortal, icon: Package },
     { id: 'logistics', label: t.navLogistics, icon: Truck },
     { id: 'learning', label: t.navLearning, icon: GraduationCap },
-    { id: 'ai-assistant', label: t.navAIAssistant, icon: Sparkles, highlight: true },
+    { id: 'engineering', label: 'CS Core (AOA/DBMS/MATHS/OOP)', icon: Binary, highlight: true },
+    { id: 'ai-assistant', label: t.navAIAssistant, icon: Sparkles },
     { id: 'support', label: t.navSupport, icon: PhoneCall }
   ];
 
@@ -65,12 +67,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="container mx-auto flex items-center justify-between">
           <span className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#E6B325] animate-pulse"></span>
-            <span>Direct Village Sourcing · 86%+ Proceeds to Rural Artisans · Zero Middlemen</span>
+            <span>Architect: <strong>Vedant Mishra</strong> · Engineered on AOA, DBMS, MATHS & OOP Principles · 86%+ Direct Artisan UPI</span>
           </span>
           <div className="hidden md:flex items-center gap-4 text-[11px] text-white/80">
-            <span>Toll-Free Helpline: 1800-419-GRAM</span>
+            <span>Toll-Free: 1800-419-GRAM</span>
             <span>·</span>
-            <span>India Post & Gram Express Rural Nodal Relay</span>
+            <span>Varanasi & Pan-India Post Relay</span>
           </div>
         </div>
       </div>

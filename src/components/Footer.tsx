@@ -126,9 +126,14 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
 
           <div>
             <h5 className="font-semibold text-white text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
-              Artisan Tools
+              Artisan Tools & CS Core
             </h5>
             <ul className="space-y-2 text-xs text-white/75">
+              <li>
+                <button onClick={() => setActiveTab('engineering')} className="text-[#E6B325] font-semibold hover:underline flex items-center gap-1">
+                  <span>CS Core (AOA/DBMS/MATHS/OOP)</span>
+                </button>
+              </li>
               <li>
                 <button onClick={() => setActiveTab('dashboard')} className="hover:text-white transition-colors">
                   Sales & Revenue Analytics
@@ -190,7 +195,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
 
         {/* Bottom bar */}
         <div className="pt-8 mt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-white/60 gap-4">
-          <p>© 2026 Gram AI Foundation · Built for India's Rural Entrepreneurs and Artisans.</p>
+          <p>© 2026 Gram AI Foundation · Lead Architect: Vedant Mishra · Grounded in AOA, DBMS, MATHS & OOP.</p>
           <div className="flex items-center gap-4">
             <span className="hover:text-white cursor-pointer">Privacy & Data Sovereignty</span>
             <span>·</span>

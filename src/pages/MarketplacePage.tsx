@@ -133,24 +133,56 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   };
 
   const categories = [
-    { id: 'all', label: 'All Village Goods' },
-    { id: 'textiles', label: 'Handloom Textiles' },
-    { id: 'spices', label: 'Organic Spices & Saffron' },
-    { id: 'pottery', label: 'Terracotta & Blue Pottery' },
-    { id: 'honey_oils', label: 'Raw Honey & Oils' },
-    { id: 'bamboo_wood', label: 'Wood, Leather & Crafts' },
+    { id: 'all', label: 'All Products (Explore Everything)' },
+    { id: 'clothes', label: '👕 Clothes & Handloom' },
+    { id: 'sports', label: '🏏 Sports & Fitness' },
+    { id: 'ration', label: '🌾 Ration & Groceries' },
+    { id: 'spices', label: '🌶️ Organic Spices & Saffron' },
+    { id: 'pottery', label: '🏺 Terracotta & Pottery' },
+    { id: 'honey_oils', label: '🍯 Pure Honey & A2 Ghee' },
+    { id: 'bamboo_wood', label: '🪵 Wood & Leather Craft' },
+  ];
+
+  const quickSearchPills = [
+    'Clothes',
+    'Sports',
+    'Ration',
+    'Cricket Bat',
+    'Khadi Kurta',
+    'Basmati Rice',
+    'Sharbati Atta',
+    'Yoga Mat',
+    'Carrom Board',
+    'A2 Desi Ghee',
+    'Kashmiri Saffron',
+    'Kolhapuri Chappals'
   ];
 
   const quickIdeas = [
+    'Kashmir Willow Cricket Bat',
+    'Khadi Cotton Kurta Set',
+    'Organic Sharbati Wheat Atta',
+    'Dehradun Basmati Rice',
+    'Natural Rubber Yoga Mat',
     'Kashmiri Mongra Saffron',
-    'Jaipur Blue Pottery Floral Vase',
+    'Tournament Carrom Board',
+    'Desi Gir Cow A2 Ghee',
     'Kolhapuri Leather Chappals',
-    'Coorg Arabica Coffee',
-    'Bastar Bell Metal Figurine',
-    'Kalamkari Cotton Saree',
-    'Mysore Sandalwood Soap',
-    'Terracotta Clay Water Bottle'
+    'Terracotta Clay Water Jug'
   ];
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    // If no existing products match, trigger AI discover
+    const hasMatch = products.some(p => 
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.category.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    if (!hasMatch && products.length === 0) {
+      handleDiscoverAnyProduct(searchQuery);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 max-w-6xl py-8 space-y-8">
@@ -180,10 +212,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-xs sm:text-sm text-[#2D5A27]">
-                Want to see ANY product? Source anything from rural India on-demand:
+                Want to see ANY product? Source Clothes, Sports, Ration, or anything on-demand:
               </h3>
               <p className="text-[11px] text-slate-500">
-                Type any item (e.g. Kolhapuri chappals, Warli painting, clay water jug, pure sandalwood) to add it instantly to the catalog.
+                Type any item (e.g. Cricket bats, Khadi shirts, Basmati rice, Yoga mats, Chappals, Cold-pressed oils) to add it instantly to the catalog.
               </p>
             </div>
           </div>
@@ -208,7 +240,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               type="text"
               value={customSourcingInput}
               onChange={(e) => setCustomSourcingInput(e.target.value)}
-              placeholder="Type ANY product name here (e.g., Mysore Sandalwood Oil, Assam Muga Silk, Clay Tawa)..."
+              placeholder="Type ANY product (e.g. Kashmir Willow Cricket Bat, Khadi Kurta, Sharbati Atta, Basmati Rice, Yoga Mat)..."
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs bg-white text-slate-800 focus:outline-none focus:border-[#2D5A27] shadow-inner"
             />
           </div>
@@ -252,48 +284,100 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-2.5 items-center justify-between">
           {/* Search Input */}
-          <div className="relative w-full sm:max-w-md">
+          <div className="relative w-full sm:flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by product name, artisan, materials or state..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#2D5A27]"
+              placeholder="Search ANY product (e.g. Clothes, Sports, Ration, Cricket Bat, Rice, Kurta, Atta)..."
+              className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#2D5A27] shadow-inner bg-[#F8F5F0]/60"
             />
             {searchQuery && (
               <button 
+                type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-center text-xs text-slate-500">
-            <span>Showing: <strong>{products.length}</strong> live products in store</span>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              type="submit"
+              className="px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer flex-1 sm:flex-none"
+            >
+              <Search className="w-3.5 h-3.5 text-[#E6B325]" />
+              <span>Search</span>
+            </button>
+
+            {searchQuery.trim() && (
+              <button
+                type="button"
+                onClick={() => handleDiscoverAnyProduct(searchQuery)}
+                disabled={isSourcing}
+                className="px-3.5 py-2.5 rounded-xl bg-[#E6B325]/20 hover:bg-[#E6B325]/30 text-[#2D5A27] border border-[#E6B325]/50 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 flex-1 sm:flex-none"
+                title="Source custom batch with AI"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#2D5A27]" />
+                <span>Source with AI</span>
+              </button>
+            )}
           </div>
+        </form>
+
+        {/* Quick Search Example Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-0.5 text-[11px]">
+          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Quick Search:</span>
+          {quickSearchPills.map((pill, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setSelectedCategory('all');
+                setSearchQuery(pill);
+              }}
+              className={`px-2.5 py-1 rounded-lg border whitespace-nowrap transition-colors cursor-pointer font-medium ${
+                searchQuery.toLowerCase() === pill.toLowerCase()
+                  ? 'bg-[#2D5A27] text-white border-[#2D5A27] shadow-2xs'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
+            >
+              {pill}
+            </button>
+          ))}
         </div>
 
         {/* Category Segmented Controls */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
-                selectedCategory === cat.id
-                  ? 'bg-[#2D5A27] text-white shadow-xs font-semibold'
-                  : 'bg-[#F8F5F0] text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  setSelectedCategory(cat.id);
+                  if (searchQuery && cat.id !== 'all') setSearchQuery('');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                  selectedCategory === cat.id
+                    ? 'bg-[#2D5A27] text-white shadow-xs font-semibold'
+                    : 'bg-[#F8F5F0] text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 shrink-0">
+            <span>Showing: <strong>{products.length}</strong> live products</span>
+          </div>
         </div>
       </div>
 
@@ -365,6 +449,17 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 {/* Fair-Trade Direct Impact Strip */}
                 <div className="absolute top-2.5 left-2.5 bg-[#2D5A27]/90 backdrop-blur-xs text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow-xs">
                   {product.fairTradePercent}% direct to artisan
+                </div>
+
+                {/* Category Badge */}
+                <div className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-xs text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded shadow-xs uppercase tracking-wider border border-slate-200/80">
+                  {product.category === 'clothes' ? '👕 Clothes' : 
+                   product.category === 'sports' ? '🏏 Sports' : 
+                   product.category === 'ration' ? '🌾 Ration' : 
+                   product.category === 'textiles' ? 'Handloom' : 
+                   product.category === 'pottery' ? 'Pottery' : 
+                   product.category === 'spices' ? 'Spices' : 
+                   product.category === 'honey_oils' ? 'Honey & Oil' : 'Handicraft'}
                 </div>
 
                 <div className="absolute bottom-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded flex items-center gap-1">
