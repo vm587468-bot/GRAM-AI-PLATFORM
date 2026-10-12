@@ -9,12 +9,14 @@ import {
   Mail, 
   ExternalLink 
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 interface FooterProps {
   setActiveTab: (tab: string) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
+  const { t } = useLanguage();
   return (
     <footer className="bg-[#1E3D1A] text-white pt-14 pb-8 border-t-4 border-[#E6B325]">
       <div className="container mx-auto px-4">
@@ -25,8 +27,8 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-white text-sm mb-1">Direct Fair Trade Guarantee</h4>
-              <p className="text-white/70">86%+ of customer payments flow straight to the village artisan self-help group.</p>
+              <h4 className="font-semibold text-white text-sm mb-1">{t.footerFairTradeTitle}</h4>
+              <p className="text-white/70">{t.footerFairTradeDesc}</p>
             </div>
           </div>
 
@@ -35,8 +37,8 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
               <CreditCard className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-white text-sm mb-1">Instant NPCI UPI Escrow</h4>
-              <p className="text-white/70">Secure digital payments with automatic dispatch release and zero merchant deductions.</p>
+              <h4 className="font-semibold text-white text-sm mb-1">{t.footerEscrowTitle}</h4>
+              <p className="text-white/70">{t.footerEscrowDesc}</p>
             </div>
           </div>
 
@@ -45,8 +47,8 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-white text-sm mb-1">Rural Nodal Logistics</h4>
-              <p className="text-white/70">Partnered with India Post rural branch offices and Gram Express electric fleet.</p>
+              <h4 className="font-semibold text-white text-sm mb-1">{t.footerLogisticsTitle}</h4>
+              <p className="text-white/70">{t.footerLogisticsDesc}</p>
             </div>
           </div>
 
@@ -55,8 +57,8 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
               <Heart className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-white text-sm mb-1">Generational Heritage</h4>
-              <p className="text-white/70">Authentic GI-certified crafts, organic farm produce, and zero plastic packaging.</p>
+              <h4 className="font-semibold text-white text-sm mb-1">{t.footerHeritageTitle}</h4>
+              <p className="text-white/70">{t.footerHeritageDesc}</p>
             </div>
           </div>
         </div>
@@ -69,23 +71,23 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
               <div className="w-8 h-8 rounded-lg bg-[#E6B325] text-[#1E3D1A] flex items-center justify-center font-bold">
                 G
               </div>
-              <span className="text-xl font-serif font-bold text-white tracking-wide">Gram AI</span>
+              <span className="text-xl font-serif font-bold text-white tracking-wide">{t.appName}</span>
             </div>
             <p className="text-white/70 text-xs leading-relaxed max-w-sm">
-              Empowering India's 650,000 villages with integrated digital commerce, micro-logistics relay, AI-driven market intelligence, and multilingual learning tools.
+              {t.footerMission}
             </p>
             <div className="pt-2 text-xs text-white/60 space-y-1.5">
               <div className="flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-[#E6B325]" />
-                <span>Nodal Clusters: Madhubani · Molela · Wayanad · Sundarbans · Barpeta</span>
+                <span>{t.footerNodalClusters}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-[#E6B325]" />
-                <span>Toll-Free Kisan & Artisan Mitra: 1800-419-GRAM</span>
+                <span>{t.footerTollFree}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-[#E6B325]" />
-                <span>helpdesk@gramai.org · WhatsApp: +91 94310 44521</span>
+                <span>{t.footerEmail}</span>
               </div>
             </div>
           </div>
@@ -93,32 +95,32 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
           {/* Platform Columns */}
           <div>
             <h5 className="font-semibold text-white text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
-              Marketplace
+              {t.navMarketplace}
             </h5>
             <ul className="space-y-2 text-xs text-white/75">
               <li>
-                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors">
-                  Handcrafted Textiles & Silks
+                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.catTextiles}
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors">
-                  Terracotta & Earthen Pottery
+                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.catPottery}
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors">
-                  Organic Wayanad Spices
+                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.catSpices}
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors">
-                  Wild Mangrove Honey & Oils
+                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.catHoneyOils}
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors">
-                  Bamboo & Wooden Toys
+                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.catBambooWood}
                 </button>
               </li>
             </ul>
@@ -126,37 +128,32 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
 
           <div>
             <h5 className="font-semibold text-white text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
-              Artisan Tools & CS Core
+              {t.navDeals}
             </h5>
             <ul className="space-y-2 text-xs text-white/75">
               <li>
-                <button onClick={() => setActiveTab('engineering')} className="text-[#E6B325] font-semibold hover:underline flex items-center gap-1">
-                  <span>CS Core (AOA/DBMS/MATHS/OOP)</span>
+                <button onClick={() => setActiveTab('deals')} className="text-[#E6B325] font-semibold hover:underline flex items-center gap-1 cursor-pointer">
+                  <span>{t.dealsTitle}</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('dashboard')} className="hover:text-white transition-colors">
-                  Sales & Revenue Analytics
+                <button onClick={() => setActiveTab('dashboard')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.artisanDashboard}
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('ai-assistant')} className="hover:text-white transition-colors">
-                  Gram Sahayak AI Advisor
+                <button onClick={() => setActiveTab('ai-assistant')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.voiceAdvisor}
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('logistics')} className="hover:text-white transition-colors">
-                  Hub Consignment Tracking
+                <button onClick={() => setActiveTab('logistics')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.navLogistics}
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('learning')} className="hover:text-white transition-colors">
-                  PM Vishwakarma & Mudra Hub
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setActiveTab('learning')} className="hover:text-white transition-colors">
-                  Eco-Packaging Video Lessons
+                <button onClick={() => setActiveTab('schemes')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.navSchemes}
                 </button>
               </li>
             </ul>
@@ -164,30 +161,28 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
 
           <div>
             <h5 className="font-semibold text-white text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
-              Governance & Trust
+              {t.navSupport}
             </h5>
             <ul className="space-y-2 text-xs text-white/75">
               <li>
-                <button onClick={() => setActiveTab('support')} className="hover:text-white transition-colors">
-                  Village Coordinator Kiosks
+                <button onClick={() => setActiveTab('support')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.supportTitle}
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveTab('customer')} className="hover:text-white transition-colors">
-                  Direct Verified Reviews
+                <button onClick={() => setActiveTab('customer')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.navCustomerPortal}
                 </button>
               </li>
               <li>
-                <a href="#schemes" onClick={(e) => { e.preventDefault(); setActiveTab('learning'); }} className="hover:text-white transition-colors flex items-center gap-1">
-                  <span>NABARD & SHG Linkage</span>
-                  <ExternalLink className="w-3 h-3 text-white/50" />
-                </a>
+                <button onClick={() => setActiveTab('village-connect')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.navVillageConnect}
+                </button>
               </li>
               <li>
-                <a href="#gi" onClick={(e) => { e.preventDefault(); setActiveTab('learning'); }} className="hover:text-white transition-colors flex items-center gap-1">
-                  <span>Geographical Indication (GI)</span>
-                  <ExternalLink className="w-3 h-3 text-white/50" />
-                </a>
+                <button onClick={() => setActiveTab('admin')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.navAdmin}
+                </button>
               </li>
             </ul>
           </div>
@@ -195,13 +190,13 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
 
         {/* Bottom bar */}
         <div className="pt-8 mt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-white/60 gap-4">
-          <p>© 2026 Gram AI Foundation · Lead Architect: Vedant Mishra · Grounded in AOA, DBMS, MATHS & OOP.</p>
+          <p>{t.footerCopyright} · Lead Architect: Vedant Mishra.</p>
           <div className="flex items-center gap-4">
-            <span className="hover:text-white cursor-pointer">Privacy & Data Sovereignty</span>
+            <span className="hover:text-white cursor-pointer">{t.footerLegal}</span>
             <span>·</span>
-            <span className="hover:text-white cursor-pointer">Artisan Charter</span>
+            <span className="hover:text-white cursor-pointer">{t.authenticityGuaranteed}</span>
             <span>·</span>
-            <span className="hover:text-white cursor-pointer">Open ONDC Protocol</span>
+            <span className="hover:text-white cursor-pointer">{t.trustPostalRelay}</span>
           </div>
         </div>
       </div>

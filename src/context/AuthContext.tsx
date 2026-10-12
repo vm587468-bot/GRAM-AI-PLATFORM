@@ -13,15 +13,15 @@ interface AuthContextType {
 
 const DEFAULT_USER: User = {
   id: 'user-artisan-1',
-  name: 'Vedant Mishra',
-  email: 'vedant.mishra@gramai.in',
+  name: 'Radha Devi',
+  email: 'radha.devi@gramai.in',
   role: 'entrepreneur',
   phone: '+91 94310 44521',
-  location: 'Varanasi Craft & Tech Hub',
+  location: 'Varanasi',
   state: 'Uttar Pradesh',
-  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
-  bio: 'Founder & Lead Engineer at Gram AI. Integrating Core Computer Science & Engineering (AOA, DBMS, Applied MATHS, OOP) with grassroots rural commerce to ensure 86%+ direct UPI payouts for Indian artisans.',
-  shgName: 'Mishra Rural Guild & Tech Labs',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Radha',
+  bio: 'Master handloom artisan & Self-Help Group coordinator representing 35 rural weavers across Varanasi district. Direct UPI escrow empowered.',
+  shgName: 'Ganga Weaver Self Help Group',
   joinedDate: '2024-01-01'
 };
 

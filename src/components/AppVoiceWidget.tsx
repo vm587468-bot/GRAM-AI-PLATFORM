@@ -34,23 +34,7 @@ interface ChatItem {
 }
 
 import { UNIVERSAL_AUDIO_LANGUAGES } from '../audioLanguages';
-
-interface AppVoiceWidgetProps {
-  currentTab: string;
-  setActiveTab: (tab: string) => void;
-  onTrackOrder: (trackingId: string) => void;
-  onFilterMarketplace: (search: string) => void;
-}
-
-interface ChatItem {
-  id: string;
-  sender: 'user' | 'assistant';
-  text: string;
-  action?: {
-    type: 'navigate' | 'search_product' | 'track_order' | 'open_cart';
-    target?: string;
-  };
-}
+import { useLanguage } from '../context/LanguageContext';
 
 export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
   currentTab,
@@ -58,28 +42,41 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
   onTrackOrder,
   onFilterMarketplace
 }) => {
+  const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedVoiceLang, setSelectedVoiceLang] = useState('hi-IN');
+  const [selectedVoiceLang, setSelectedVoiceLang] = useState(() => {
+    if (language === 'hi') return 'hi-IN';
+    if (language === 'mr') return 'mr-IN';
+    if (language === 'gu') return 'gu-IN';
+    return 'en-IN';
+  });
   const [customVoiceLangName, setCustomVoiceLangName] = useState('');
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (language === 'hi') setSelectedVoiceLang('hi-IN');
+    else if (language === 'mr') setSelectedVoiceLang('mr-IN');
+    else if (language === 'gu') setSelectedVoiceLang('gu-IN');
+    else setSelectedVoiceLang('en-IN');
+  }, [language]);
 
   const [history, setHistory] = useState<ChatItem[]>([
     {
       id: 'init-msg',
       sender: 'assistant',
-      text: "Namaste! I am your Gram AI Voice Assistant. Speak or type any query about our products, UPI payments, postal tracking, or the CS Engineering Architecture (AOA, DBMS, MATHS, OOP) designed by Vedant Mishra."
+      text: "Namaste! I am your Gram AI Voice Assistant. Speak or type any query about village products, verified GI quality, government schemes, UPI escrow payments, parcel tracking, or artisan deals."
     }
   ]);
 
   const [suggestedQueries, setSuggestedQueries] = useState<string[]>([
     'How does UPI escrow protect buyers and artisans?',
     'Track my parcel GRAM-88219',
-    'Explain AOA Dijkstra routing in logistics',
-    'How does DBMS ACID escrow protect payments?',
+    'How to apply for PM Vishwakarma scheme?',
+    'Discover best deals and rural schemes',
     'Show me handloom sarees and textiles'
   ]);
 
@@ -254,7 +251,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
       const fallbackItem: ChatItem = {
         id: `bot-${Date.now()}`,
         sender: 'assistant',
-        text: "Gram AI connects village producers directly with conscious buyers. Designed by Vedant Mishra, the system incorporates AOA Dijkstra logistics, 3NF ACID escrow, Markov tracking, and clean OOP architecture!"
+        text: "Gram AI connects village producers directly with conscious buyers across India, featuring verified GI crafts, authentic product quality, direct UPI escrow, postal logistics, and transparent pricing."
       };
       setHistory(prev => [...prev, fallbackItem]);
       if (autoSpeak) speakText(fallbackItem.text);
@@ -295,7 +292,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#E6B325] animate-ping" />
             </div>
             <span className="font-semibold text-xs tracking-wide">
-              AI Voice Assistant
+              {t.voiceAdvisor}
             </span>
           </button>
         )}
@@ -303,7 +300,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
 
       {/* Floating Interactive Voice Panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm sm:max-w-md bg-white rounded-3xl shadow-2xl border border-[#2D5A27]/25 overflow-hidden flex flex-col max-h-[85vh] text-[#2C2C2C] animate-in fade-in slide-in-from-bottom-5 duration-200">
+        <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm sm:max-w-md bg-white dark:bg-[#1E293B] rounded-3xl shadow-2xl border border-[#2D5A27]/25 dark:border-slate-700 overflow-hidden flex flex-col max-h-[85vh] text-[#2C2C2C] dark:text-slate-100 animate-in fade-in slide-in-from-bottom-5 duration-200">
           
           {/* Header */}
           <div className="p-4 bg-[#2D5A27] text-white space-y-2.5">
@@ -313,8 +310,8 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm leading-tight">Gram AI Voice Copilot</h3>
-                  <p className="text-[11px] text-white/80">Answers questions & speaks in any language</p>
+                  <h3 className="font-bold text-sm leading-tight">{t.voiceCopilotTitle}</h3>
+                  <p className="text-[11px] text-white/80">{t.voiceCopilotSubtitle}</p>
                 </div>
               </div>
 
@@ -380,16 +377,16 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
 
           {/* Voice Speaking Status Bar */}
           {isSpeaking && (
-            <div className="bg-[#E6B325]/20 border-b border-[#E6B325]/40 px-4 py-1.5 flex items-center justify-between text-xs text-[#2D5A27]">
+            <div className="bg-[#E6B325]/20 border-b border-[#E6B325]/40 px-4 py-1.5 flex items-center justify-between text-xs text-[#2D5A27] dark:text-[#E6B325]">
               <span className="flex items-center gap-1.5 font-semibold text-[11px]">
-                <Volume2 className="w-3.5 h-3.5 animate-pulse text-[#2D5A27]" />
+                <Volume2 className="w-3.5 h-3.5 animate-pulse text-[#2D5A27] dark:text-[#E6B325]" />
                 <span>
                   Speaking in {selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom Language') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label.split(' ')[0] || 'Selected Language')}...
                 </span>
               </span>
               <button
                 onClick={stopSpeaking}
-                className="text-[10px] uppercase font-bold text-rose-700 hover:underline cursor-pointer"
+                className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-400 hover:underline cursor-pointer"
               >
                 Stop Audio
               </button>
@@ -397,7 +394,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
           )}
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F8F5F0]/50 text-xs min-h-[240px] max-h-[360px]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F8F5F0]/50 dark:bg-slate-900/60 text-xs min-h-[240px] max-h-[360px]">
             {history.map((item) => {
               const isBot = item.sender === 'assistant';
               return (
@@ -414,26 +411,26 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
                   <div
                     className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${
                       isBot
-                        ? 'bg-white border border-slate-200 text-slate-800 shadow-2xs'
+                        ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 shadow-2xs'
                         : 'bg-[#2D5A27] text-white shadow-xs'
                     }`}
                   >
                     <p className="whitespace-pre-line">{item.text}</p>
 
                     {isBot && (
-                      <div className="pt-2 mt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                      <div className="pt-2 mt-1.5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-[10px] text-slate-400">
                         <button
                           onClick={() => speakText(item.text)}
-                          className="hover:text-[#2D5A27] flex items-center gap-1 font-semibold cursor-pointer"
+                          className="hover:text-[#2D5A27] dark:hover:text-[#22C55E] flex items-center gap-1 font-semibold cursor-pointer"
                         >
-                          <Volume2 className="w-3 h-3 text-[#2D5A27]" />
-                          <span>Listen Audio</span>
+                          <Volume2 className="w-3 h-3 text-[#2D5A27] dark:text-[#22C55E]" />
+                          <span>{t.listenAudio}</span>
                         </button>
 
                         {item.action && item.action.type && (
                           <button
                             onClick={() => handleExecuteAction(item.action)}
-                            className="text-[#2D5A27] font-bold hover:underline flex items-center gap-0.5"
+                            className="text-[#2D5A27] dark:text-[#22C55E] font-bold hover:underline flex items-center gap-0.5"
                           >
                             <span>Open {item.action.target || item.action.type}</span>
                             <ArrowRight className="w-2.5 h-2.5" />
@@ -447,8 +444,8 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
             })}
 
             {loading && (
-              <div className="flex items-center gap-2 text-xs text-slate-500 py-1">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#2D5A27]" />
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 py-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#2D5A27] dark:text-[#22C55E]" />
                 <span>Preparing answer in your selected language...</span>
               </div>
             )}
@@ -457,7 +454,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
           </div>
 
           {/* Quick Voice Chips */}
-          <div className="px-3 py-2 bg-white border-t border-slate-100 space-y-1">
+          <div className="px-3 py-2 bg-white dark:bg-[#1E293B] border-t border-slate-100 dark:border-slate-800 space-y-1">
             <span className="text-[10px] font-semibold uppercase text-slate-400 block px-1">
               Ask or Tap to Speak:
             </span>
@@ -466,7 +463,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
                 <button
                   key={idx}
                   onClick={() => handleSendQuery(q)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-[#2D5A27]/10 hover:text-[#2D5A27] text-[11px] text-slate-700 whitespace-nowrap transition-colors cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#2D5A27]/10 dark:hover:bg-slate-700 hover:text-[#2D5A27] dark:hover:text-emerald-400 text-[11px] text-slate-700 dark:text-slate-300 whitespace-nowrap transition-colors cursor-pointer"
                 >
                   "{q}"
                 </button>
@@ -475,7 +472,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
           </div>
 
           {/* Interactive Mic and Input */}
-          <div className="p-3 bg-white border-t border-slate-200">
+          <div className="p-3 bg-white dark:bg-[#1E293B] border-t border-slate-200 dark:border-slate-800">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -502,7 +499,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder={isRecording ? `Listening in ${selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label.split(' ')[0] || 'Selected Language')}...` : 'Ask anything about products or CS architecture...'}
-                className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#2D5A27] placeholder-slate-400"
+                className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#2D5A27] dark:focus:border-emerald-500 placeholder-slate-400"
               />
 
               <button
@@ -515,7 +512,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
             </form>
 
             {isRecording && (
-              <p className="text-[10px] text-rose-600 font-semibold mt-1 px-1 flex items-center gap-1">
+              <p className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold mt-1 px-1 flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
                 <span>Listening now in {selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom Language') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label || 'Selected Language')}... Speak clearly!</span>
               </p>

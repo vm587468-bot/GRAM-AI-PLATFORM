@@ -28,10 +28,12 @@ import {
 } from 'lucide-react';
 import { Product, Order } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiveTab }) => {
   const { currentUser } = useAuth();
-  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'orders' | 'chats' | 'payouts' | 'inventory'>('analytics');
+  const { t } = useLanguage();
+  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'orders' | 'chats' | 'payouts' | 'inventory' | 'schemes'>('analytics');
   
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -288,7 +290,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
     <div className="container mx-auto px-4 max-w-6xl py-8 space-y-8">
       
       {/* Top Welcome Bar */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#2D5A27]/15 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 sm:p-8 border border-[#2D5A27]/15 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 transition-colors">
         <div className="flex items-center gap-4">
           <img
             src={currentUser.avatar}
@@ -297,18 +299,18 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
           />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900">
+              <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
                 {currentUser.name}
               </h1>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2D5A27] text-white">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2D5A27] dark:bg-emerald-600 text-white">
                 Verified SHG Lead
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              {currentUser.shgName || 'Mishra Rural Guild & Tech Labs'} · {currentUser.location}, {currentUser.state}
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {currentUser.shgName || 'Ganga Weaver Self Help Group'} · {currentUser.location}, {currentUser.state}
             </p>
-            <div className="flex items-center gap-3 text-[11px] text-slate-600 mt-1.5 font-medium">
-              <span>Direct Bank VPA: <strong className="font-mono text-[#2D5A27]">{payoutsData?.upiVpa || 'vedantmishra@sbi'}</strong></span>
+            <div className="flex items-center gap-3 text-[11px] text-slate-600 dark:text-slate-300 mt-1.5 font-medium">
+              <span>Direct Bank VPA: <strong className="font-mono text-[#2D5A27] dark:text-emerald-400">{payoutsData?.upiVpa || 'radhadevi@sbi'}</strong></span>
             </div>
           </div>
         </div>
@@ -316,95 +318,95 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs sm:text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-[#E6B325]" />
-            <span>Sell New Product</span>
+            <Plus className="w-4 h-4 text-[#E6B325] dark:text-amber-300" />
+            <span>{t.addProduct}</span>
           </button>
 
           <button
             onClick={() => setActiveTab('ai-assistant')}
-            className="px-4 py-2.5 rounded-xl bg-[#E6B325]/20 hover:bg-[#E6B325]/30 text-[#2D5A27] border border-[#E6B325]/40 font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-[#E6B325]/20 hover:bg-[#E6B325]/30 text-[#2D5A27] dark:text-amber-300 border border-[#E6B325]/40 font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-[#2D5A27]" />
-            <span>Voice Advisor</span>
+            <Sparkles className="w-4 h-4 text-[#2D5A27] dark:text-amber-300" />
+            <span>{t.voiceAdvisor}</span>
           </button>
         </div>
       </div>
 
       {/* 7 Core Capabilities Status Strip */}
-      <div className="bg-[#2D5A27]/5 border border-[#2D5A27]/20 p-3.5 rounded-2xl flex items-center gap-3 overflow-x-auto scrollbar-none text-xs">
-        <span className="font-bold text-[#2D5A27] shrink-0 uppercase tracking-wider text-[10px]">
-          All Active Features:
+      <div className="bg-[#2D5A27]/5 dark:bg-slate-800/60 border border-[#2D5A27]/20 dark:border-slate-700 p-3.5 rounded-2xl flex items-center gap-3 overflow-x-auto scrollbar-none text-xs">
+        <span className="font-bold text-[#2D5A27] dark:text-emerald-400 shrink-0 uppercase tracking-wider text-[10px]">
+          {t.appName} Features:
         </span>
-        <div className="flex items-center gap-4 shrink-0 font-medium text-slate-700">
-          <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
-            <Check className="w-3.5 h-3.5 text-[#2D5A27]" />
-            <span>Sell Products</span>
+        <div className="flex items-center gap-4 shrink-0 font-medium text-slate-700 dark:text-slate-200">
+          <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+            <Check className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+            <span>{t.addProduct}</span>
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
-            <Check className="w-3.5 h-3.5 text-[#2D5A27]" />
-            <span>Receive Payments (UPI)</span>
+          <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+            <Check className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+            <span>{t.upiPayment}</span>
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
-            <Check className="w-3.5 h-3.5 text-[#2D5A27]" />
-            <span>Track Deliveries</span>
+          <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+            <Check className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+            <span>{t.trackConsignment}</span>
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
-            <Check className="w-3.5 h-3.5 text-[#2D5A27]" />
-            <span>Chat with Customers</span>
+          <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+            <Check className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+            <span>{t.buyerEnquiries}</span>
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
-            <Check className="w-3.5 h-3.5 text-[#2D5A27]" />
-            <span>Business Analytics</span>
+          <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+            <Check className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+            <span>{t.dashboardAnalytics}</span>
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
-            <Check className="w-3.5 h-3.5 text-[#2D5A27]" />
-            <span>Tutorials Hub</span>
+          <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+            <Check className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+            <span>{t.navDeals}</span>
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
-            <Check className="w-3.5 h-3.5 text-[#2D5A27]" />
-            <span>Voice Support</span>
+          <span className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-semibold">
+            <Check className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+            <span>{t.voiceAdvisor}</span>
           </span>
         </div>
       </div>
 
       {/* Main Sub-Navigation Bar */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto scrollbar-none">
         <button
           onClick={() => setActiveSubTab('analytics')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeSubTab === 'analytics'
-              ? 'bg-[#2D5A27] text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
           }`}
         >
           <BarChart3 className="w-4 h-4" />
-          <span>Business Analytics</span>
+          <span>{t.dashboardAnalytics}</span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('orders')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeSubTab === 'orders'
-              ? 'bg-[#2D5A27] text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
           }`}
         >
           <Truck className="w-4 h-4" />
-          <span>Track Deliveries ({orders.length})</span>
+          <span>{t.dashboardOrders} ({orders.length})</span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('chats')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer relative ${
             activeSubTab === 'chats'
-              ? 'bg-[#2D5A27] text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>Chat with Customers</span>
+          <span>{t.buyerEnquiries}</span>
           {customerChats.some(c => c.unreadByArtisan > 0) && (
             <span className="w-2 h-2 rounded-full bg-[#E6B325] animate-ping" />
           )}
@@ -414,24 +416,36 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
           onClick={() => setActiveSubTab('payouts')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeSubTab === 'payouts'
-              ? 'bg-[#2D5A27] text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          <span>Receive Payments & UPI Ledger</span>
+          <span>{t.payoutAccount}</span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('inventory')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             activeSubTab === 'inventory'
-              ? 'bg-[#2D5A27] text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
           }`}
         >
           <Package className="w-4 h-4" />
-          <span>Sell Products ({products.length})</span>
+          <span>{t.dashboardInventory} ({products.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('schemes')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            activeSubTab === 'schemes'
+              ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+          }`}
+        >
+          <Landmark className="w-4 h-4 text-[#C69516]" />
+          <span>{t.navSchemes}</span>
         </button>
       </div>
 
@@ -440,63 +454,63 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* KPI Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Total Sales Revenue</span>
-                <span className="p-1.5 rounded-lg bg-[#2D5A27]/10 text-[#2D5A27]">
+            <div className="bg-white dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2 transition-colors">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>{t.totalSalesRevenue}</span>
+                <span className="p-1.5 rounded-lg bg-[#2D5A27]/10 dark:bg-emerald-950/60 text-[#2D5A27] dark:text-emerald-400">
                   <TrendingUp className="w-4 h-4" />
                 </span>
               </div>
-              <div className="text-2xl font-bold font-serif text-[#2D5A27]">
+              <div className="text-2xl font-bold font-serif text-[#2D5A27] dark:text-emerald-400">
                 ₹{analytics?.kpis?.totalSales?.toLocaleString('en-IN') || '2,84,500'}
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold">
+              <div className="flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
                 <span>+24.5%</span>
-                <span className="text-slate-400 font-normal">vs previous month</span>
+                <span className="text-slate-400 dark:text-slate-500 font-normal">vs previous month</span>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Direct Customer Orders</span>
-                <span className="p-1.5 rounded-lg bg-[#E6B325]/20 text-[#C69516]">
+            <div className="bg-white dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2 transition-colors">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>{t.directCustomerOrders}</span>
+                <span className="p-1.5 rounded-lg bg-[#E6B325]/20 dark:bg-amber-950/60 text-[#C69516] dark:text-amber-300">
                   <Package className="w-4 h-4" />
                 </span>
               </div>
-              <div className="text-2xl font-bold font-serif text-slate-900">
+              <div className="text-2xl font-bold font-serif text-slate-900 dark:text-white">
                 {analytics?.kpis?.totalOrders || 186}
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold">
+              <div className="flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
                 <span>12 ready for postal dispatch</span>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Active Conscious Patrons</span>
-                <span className="p-1.5 rounded-lg bg-blue-50 text-blue-700">
+            <div className="bg-white dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2 transition-colors">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>{t.activePatrons}</span>
+                <span className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
                   <Users className="w-4 h-4" />
                 </span>
               </div>
-              <div className="text-2xl font-bold font-serif text-slate-900">
+              <div className="text-2xl font-bold font-serif text-slate-900 dark:text-white">
                 {analytics?.kpis?.activeCustomers || 142}
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-slate-500">
+              <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                 <span>71% repeat purchase rate</span>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Fair Producer Cut</span>
-                <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
+            <div className="bg-white dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2 transition-colors">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>{t.fairProducerCut}</span>
+                <span className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
                 </span>
               </div>
-              <div className="text-2xl font-bold font-serif text-emerald-800">
+              <div className="text-2xl font-bold font-serif text-emerald-800 dark:text-emerald-300">
                 86.4%
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-slate-400">
+              <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
                 <span>Zero broker deductions</span>
               </div>
             </div>
@@ -510,7 +524,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">Gram Sahayak AI: Daily Market Intelligence</h3>
+                  <h3 className="font-bold text-sm text-white">{t.dailyMarketIntelligence}</h3>
                   <p className="text-[11px] text-white/70">Real-time demand intelligence tailored for your village craft category</p>
                 </div>
               </div>
@@ -521,7 +535,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                 className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${tipsLoading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Refresh Insights</span>
+                <span className="hidden sm:inline">{t.refreshInsights}</span>
               </button>
             </div>
 
@@ -611,77 +625,75 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="font-bold text-base text-slate-900">Live Orders & Consignment Tracking</h3>
-                <p className="text-xs text-slate-500">Advance fulfillment status directly when postal partners pick up packages</p>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">{t.ordersTitle}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t.ordersSubtitle}</p>
               </div>
               <button
                 onClick={() => setActiveTab('logistics')}
                 className="px-3.5 py-1.5 rounded-xl bg-[#2D5A27] text-white text-xs font-semibold hover:bg-[#1E3D1A] flex items-center gap-1.5 shadow-xs cursor-pointer self-start sm:self-auto"
               >
                 <Truck className="w-3.5 h-3.5 text-[#E6B325]" />
-                <span>Open Postal Relay Map</span>
+                <span>{t.trackConsignment}</span>
               </button>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-semibold">
-                    <th className="pb-3">Order & Tracking ID</th>
-                    <th className="pb-3">Customer</th>
-                    <th className="pb-3">Items</th>
-                    <th className="pb-3">Amount</th>
-                    <th className="pb-3">Current Status</th>
-                    <th className="pb-3 text-right">Fulfillment Action</th>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
+                    <th className="pb-3">{t.orderConsignment}</th>
+                    <th className="pb-3">{t.roleCustomer.split('/')[0]}</th>
+                    <th className="pb-3">{t.shipmentContents}</th>
+                    <th className="pb-3">{t.totalAmount}</th>
+                    <th className="pb-3">{t.accountStatus}</th>
+                    <th className="pb-3 text-right">{t.advanceStatus}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
+                    <tr key={order.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3">
-                        <div className="font-semibold text-slate-900">{order.id}</div>
-                        <div className="font-mono text-[11px] text-[#2D5A27] font-bold">{order.trackingId}</div>
+                        <div className="font-semibold text-slate-900 dark:text-white">{order.id}</div>
+                        <div className="font-mono text-[11px] text-[#2D5A27] dark:text-emerald-400 font-bold">{order.trackingId}</div>
                       </td>
                       <td className="py-3">
-                        <div className="font-medium text-slate-800">{order.customerName}</div>
+                        <div className="font-medium text-slate-800 dark:text-slate-200">{order.customerName}</div>
                         <div className="text-[10px] text-slate-400">{order.customerPhone}</div>
                       </td>
                       <td className="py-3">
-                        <div className="max-w-[180px] truncate text-slate-700 font-medium">
+                        <div className="max-w-[180px] truncate text-slate-700 dark:text-slate-300 font-medium">
                           {order.items.map(it => `${it.quantity}x ${it.title}`).join(', ')}
                         </div>
                       </td>
-                      <td className="py-3 font-serif font-bold text-slate-900">
+                      <td className="py-3 font-serif font-bold text-slate-900 dark:text-white">
                         ₹{order.totalAmount}
                       </td>
                       <td className="py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          order.orderStatus === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
-                          order.orderStatus === 'out_for_delivery' ? 'bg-blue-100 text-blue-800' :
-                          order.orderStatus === 'dispatched' ? 'bg-purple-100 text-purple-800' :
-                          order.orderStatus === 'packed' ? 'bg-amber-100 text-amber-800' :
-                          'bg-slate-100 text-slate-800'
+                          order.orderStatus === 'delivered' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' :
+                          order.orderStatus === 'out_for_delivery' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' :
+                          order.orderStatus === 'dispatched' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300' :
+                          order.orderStatus === 'packed' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' :
+                          'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
                         }`}>
-                          {order.orderStatus.replace('_', ' ')}
+                          {order.orderStatus === 'delivered' ? t.deliveredSuccess : order.orderStatus === 'out_for_delivery' ? t.outForDeliveryStatus : order.orderStatus === 'dispatched' ? t.inTransit : order.orderStatus === 'packed' ? t.markPacked : order.orderStatus}
                         </span>
                       </td>
                       <td className="py-3 text-right">
                         {order.orderStatus !== 'delivered' ? (
                           <button
                             onClick={() => handleUpdateOrderStatus(order.id, order.orderStatus)}
-                            className="px-2.5 py-1.5 rounded-lg bg-[#2D5A27] text-white hover:bg-[#1E3D1A] font-semibold text-[11px] transition-colors shadow-xs cursor-pointer"
+                            className="px-2.5 py-1.5 rounded-lg bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-[11px] transition-colors shadow-xs cursor-pointer"
                           >
-                            Advance: {
-                              order.orderStatus === 'placed' ? 'Mark Packed' :
-                              order.orderStatus === 'packed' ? 'Handover to Hub' :
-                              order.orderStatus === 'dispatched' ? 'Out for Delivery' :
-                              'Mark Delivered'
-                            }
+                            {order.orderStatus === 'placed' ? t.markPacked :
+                             order.orderStatus === 'packed' ? t.handoverToHub :
+                             order.orderStatus === 'dispatched' ? t.outForDeliveryStatus :
+                             t.markDelivered}
                           </button>
                         ) : (
-                          <span className="text-[11px] text-emerald-700 font-semibold flex items-center justify-end gap-1">
+                          <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center justify-end gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Delivered & Escrow Settled</span>
+                            <span>{t.deliveredAndSettled}</span>
                           </span>
                         )}
                       </td>
@@ -697,14 +709,14 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
       {/* ================= TAB 3: CHAT WITH CUSTOMERS ================= */}
       {activeSubTab === 'chats' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="font-bold text-base text-slate-900">Direct Customer Inquiries & Custom Orders</h3>
-                <p className="text-xs text-slate-500">Communicate directly with buyers about custom weaves, bulk orders, and delivery dates</p>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">{t.directInquiries}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Communicate directly with buyers about custom weaves, bulk orders, and delivery dates</p>
               </div>
-              <span className="text-xs font-semibold text-[#2D5A27] bg-[#2D5A27]/10 px-2.5 py-1 rounded-lg">
-                {customerChats.length} Active Conversations
+              <span className="text-xs font-semibold text-[#2D5A27] dark:text-emerald-400 bg-[#2D5A27]/10 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg">
+                {customerChats.length} {t.activeConversations}
               </span>
             </div>
 
@@ -712,7 +724,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
               {/* Chat Thread Selector (Left 4 cols) */}
               <div className="md:col-span-4 space-y-2">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block px-1">
-                  Customer Messages:
+                  {t.buyerEnquiries}:
                 </span>
                 {customerChats.map((chat) => (
                   <button
@@ -720,39 +732,39 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                     onClick={() => setActiveChat(chat)}
                     className={`w-full text-left p-3 rounded-2xl border transition-all cursor-pointer flex gap-3 items-center ${
                       activeChat?.id === chat.id
-                        ? 'bg-[#2D5A27]/10 border-[#2D5A27] shadow-xs'
-                        : 'bg-white border-slate-200 hover:border-slate-300'
+                        ? 'bg-[#2D5A27]/10 dark:bg-emerald-950/50 border-[#2D5A27] dark:border-emerald-500 shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
                     }`}
                   >
                     <img src={chat.customerAvatar} alt={chat.customerName} className="w-10 h-10 rounded-xl object-cover" />
                     <div className="flex-1 min-w-0 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900 truncate">{chat.customerName}</span>
+                        <span className="font-bold text-slate-900 dark:text-white truncate">{chat.customerName}</span>
                         {chat.unreadByArtisan > 0 && (
                           <span className="w-2 h-2 rounded-full bg-[#E6B325]" />
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{chat.productTitle}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{chat.productTitle}</p>
                     </div>
                   </button>
                 ))}
               </div>
 
               {/* Chat Messages and Reply Form (Right 8 cols) */}
-              <div className="md:col-span-8 bg-[#F8F5F0] rounded-2xl p-4 border border-[#2D5A27]/15 flex flex-col h-[400px]">
+              <div className="md:col-span-8 bg-[#F8F5F0] dark:bg-slate-800/60 rounded-2xl p-4 border border-[#2D5A27]/15 dark:border-slate-700 flex flex-col h-[400px]">
                 {activeChat ? (
                   <>
                     {/* Header */}
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 text-xs">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-700 text-xs">
                       <div className="flex items-center gap-2">
                         <img src={activeChat.customerAvatar} alt={activeChat.customerName} className="w-7 h-7 rounded-lg object-cover" />
                         <div>
-                          <span className="font-bold text-slate-900">{activeChat.customerName}</span>
-                          <span className="text-slate-400 text-[10px] ml-2">Regarding: {activeChat.productTitle}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{activeChat.customerName}</span>
+                          <span className="text-slate-400 text-[10px] ml-2">{activeChat.productTitle}</span>
                         </div>
                       </div>
-                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                        Verified Buyer
+                      <span className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded">
+                        {t.verifiedBuyerBadge}
                       </span>
                     </div>
 
@@ -763,7 +775,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                         return (
                           <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                             <div className={`p-3 rounded-2xl max-w-[80%] leading-relaxed ${
-                              isMe ? 'bg-[#2D5A27] text-white shadow-xs' : 'bg-white text-slate-800 border border-slate-200 shadow-2xs'
+                              isMe ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-2xs'
                             }`}>
                               <div className="flex items-center justify-between text-[10px] opacity-70 mb-1">
                                 <span className="font-semibold">{isMe ? `You (${currentUser.name})` : activeChat.customerName}</span>
@@ -777,27 +789,27 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                     </div>
 
                     {/* Reply Input */}
-                    <form onSubmit={handleSendArtisanReply} className="flex gap-2 pt-2 border-t border-slate-200/80">
+                    <form onSubmit={handleSendArtisanReply} className="flex gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-700">
                       <input
                         type="text"
                         value={replyMessage}
                         onChange={(e) => setReplyMessage(e.target.value)}
-                        placeholder={`Reply directly to ${activeChat.customerName}...`}
-                        className="flex-1 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                        placeholder={`${t.typeReplyPlaceholder} (${activeChat.customerName})`}
+                        className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#2D5A27]"
                       />
                       <button
                         type="submit"
                         disabled={!replyMessage.trim() || sendingReply}
-                        className="px-4 py-2 rounded-xl bg-[#2D5A27] text-white font-semibold text-xs hover:bg-[#1E3D1A] disabled:opacity-40 transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-xs disabled:opacity-40 transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
                       >
-                        <span>Send</span>
+                        <span>{t.sendReplyBtn}</span>
                         <Send className="w-3.5 h-3.5 text-[#E6B325]" />
                       </button>
                     </form>
                   </>
                 ) : (
                   <div className="flex-1 flex items-center justify-center text-xs text-slate-400">
-                    Select a conversation to reply
+                    {t.typeReplyPlaceholder}
                   </div>
                 )}
               </div>
@@ -810,28 +822,28 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
       {activeSubTab === 'payouts' && (
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Available for Withdrawal</span>
-              <div className="text-2xl font-bold font-serif text-[#2D5A27]">
+            <div className="bg-white dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">{t.availableBalance}</span>
+              <div className="text-2xl font-bold font-serif text-[#2D5A27] dark:text-emerald-400">
                 ₹{payoutsData?.availableBalance?.toLocaleString('en-IN') || '14,850'}
               </div>
-              <p className="text-[11px] text-emerald-700 font-medium">Ready for instant UPI transfer to your bank</p>
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">{t.readyForInstantUpi}</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Held in Postal Escrow</span>
-              <div className="text-2xl font-bold font-serif text-amber-700">
+            <div className="bg-white dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">{t.pendingEscrowLabel}</span>
+              <div className="text-2xl font-bold font-serif text-amber-700 dark:text-amber-400">
                 ₹{payoutsData?.pendingEscrow?.toLocaleString('en-IN') || '3,700'}
               </div>
-              <p className="text-[11px] text-slate-500">Releases upon postal hub dispatch scan</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">{t.releasesUponScan}</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Lifetime Direct Earnings</span>
-              <div className="text-2xl font-bold font-serif text-slate-900">
+            <div className="bg-white dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">{t.lifetimeDirectEarnings}</span>
+              <div className="text-2xl font-bold font-serif text-slate-900 dark:text-white">
                 ₹{payoutsData?.totalLifetimeEarned?.toLocaleString('en-IN') || '2,84,500'}
               </div>
-              <p className="text-[11px] text-emerald-800 font-medium">86.4% producer margin (Zero commission)</p>
+              <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">{t.producerMarginZeroCommission}</p>
             </div>
           </div>
 
@@ -876,33 +888,33 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
           </div>
 
           {/* Settlement History Table */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-3">
-            <h3 className="font-bold text-sm text-slate-900">Recent Bank & UPI Settlements</h3>
+          <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+            <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t.recentBankUpiSettlements}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-semibold">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
                     <th className="pb-2">Reference ID</th>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Payment Method</th>
+                    <th className="pb-2">{t.orderDate}</th>
+                    <th className="pb-2">{t.upiPayment}</th>
                     <th className="pb-2">Bank Reference</th>
-                    <th className="pb-2">Status</th>
-                    <th className="pb-2 text-right">Amount (₹)</th>
+                    <th className="pb-2">{t.accountStatus}</th>
+                    <th className="pb-2 text-right">{t.totalAmount} (₹)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {payoutsData?.recentPayouts?.map((p: any) => (
-                    <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="py-2.5 font-bold text-slate-800">{p.id}</td>
+                    <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="py-2.5 font-bold text-slate-800 dark:text-slate-200">{p.id}</td>
                       <td className="py-2.5 text-slate-500">{p.date}</td>
-                      <td className="py-2.5 text-slate-700">{p.method}</td>
+                      <td className="py-2.5 text-slate-700 dark:text-slate-300">{p.method}</td>
                       <td className="py-2.5 font-mono text-slate-500 text-[11px]">{p.bankRef}</td>
                       <td className="py-2.5">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                           {p.status}
                         </span>
                       </td>
-                      <td className="py-2.5 text-right font-serif font-bold text-base text-[#2D5A27]">
+                      <td className="py-2.5 text-right font-serif font-bold text-base text-[#2D5A27] dark:text-emerald-400">
                         ₹{p.amount?.toLocaleString('en-IN')}
                       </td>
                     </tr>
@@ -917,18 +929,18 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
       {/* ================= TAB 5: SELL PRODUCTS & INVENTORY ================= */}
       {activeSubTab === 'inventory' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-sm text-slate-900">Sell Rural Products & Manage Stock</h3>
-                <p className="text-xs text-slate-500">Live products visible on Gram AI pan-India marketplace</p>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t.sellProductsManageStock}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t.sellProductsSubtitle}</p>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="px-3.5 py-1.5 rounded-xl bg-[#2D5A27] text-white text-xs font-semibold hover:bg-[#1E3D1A] flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Upload New Craft</span>
+                <span>{t.addProduct}</span>
               </button>
             </div>
 
@@ -951,24 +963,129 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
         </div>
       )}
 
+      {/* ================= TAB 6: GOVT SCHEMES & LOANS ================= */}
+      {activeSubTab === 'schemes' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                  <Landmark className="w-5 h-5 text-[#2D5A27]" />
+                  <span>Government Schemes, Working Capital & Subsidies</span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Subsidized credit programs and toolkit grants pre-approved for your rural enterprise.
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveTab('schemes')}
+                className="px-4 py-2 rounded-xl bg-[#2D5A27] text-white text-xs font-semibold hover:bg-[#1E3D1A] flex items-center gap-1.5 shadow-xs cursor-pointer self-start sm:self-auto"
+              >
+                <span>Full Schemes Explorer & EMI Calculator</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#E6B325]" />
+              </button>
+            </div>
+
+            {/* Pre-Approved Application Status */}
+            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-[#E6B325]" />
+                </div>
+                <div className="text-xs space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 text-sm">PM Vishwakarma Yojana (Ref: APP-VISHWA-8421)</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Disbursal Ready
+                    </span>
+                  </div>
+                  <p className="text-slate-600">
+                    Beneficiary: <strong>Vedant Mishra</strong> · Trade: <strong>Handloom Textiles & Rural Craft</strong>
+                  </p>
+                  <p className="text-[11px] text-emerald-800 font-medium">
+                    Sanctioned: ₹3,00,000 @ 5% subsidized interest · ₹15,000 Toolkit E-Voucher allocated
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-500 block uppercase font-semibold">Nodal Branch</span>
+                <span className="text-xs font-bold text-slate-800">Varanasi Central Gramin Bank #104</span>
+              </div>
+            </div>
+
+            {/* Quick Loan Options Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              <div className="p-4 rounded-2xl border border-slate-200 bg-[#F8F5F0]/50 space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-[#2D5A27]">PMMY MUDRA Loan</span>
+                  <span className="text-emerald-700 font-semibold">0 Collateral</span>
+                </div>
+                <div className="text-xl font-serif font-bold text-slate-900">Up to ₹20,00,000</div>
+                <p className="text-[11px] text-slate-500">Working capital for stock, raw yarn, sports goods, and grains.</p>
+                <button
+                  onClick={() => setActiveTab('schemes')}
+                  className="text-xs font-bold text-[#2D5A27] flex items-center gap-1 hover:underline pt-1 cursor-pointer"
+                >
+                  <span>Apply with 1-click</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-slate-200 bg-[#F8F5F0]/50 space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-[#2D5A27]">PMEGP Capital Subsidy</span>
+                  <span className="text-[#C69516] font-semibold">35% Govt Grant</span>
+                </div>
+                <div className="text-xl font-serif font-bold text-slate-900">Up to ₹50,00,000</div>
+                <p className="text-[11px] text-slate-500">Non-repayable direct cash grant up to ₹17.5 Lakh for production setups.</p>
+                <button
+                  onClick={() => setActiveTab('schemes')}
+                  className="text-xs font-bold text-[#2D5A27] flex items-center gap-1 hover:underline pt-1 cursor-pointer"
+                >
+                  <span>Apply with 1-click</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-slate-200 bg-[#F8F5F0]/50 space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-[#2D5A27]">NABARD SHG Credit</span>
+                  <span className="text-emerald-700 font-semibold">4% Interest</span>
+                </div>
+                <div className="text-xl font-serif font-bold text-slate-900">₹2L - ₹10,00,000</div>
+                <p className="text-[11px] text-slate-500">Peer micro-credit for Self-Help Groups with prompt repayment rebate.</p>
+                <button
+                  onClick={() => setActiveTab('schemes')}
+                  className="text-xs font-bold text-[#2D5A27] flex items-center gap-1 hover:underline pt-1 cursor-pointer"
+                >
+                  <span>Apply with 1-click</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Add Product Modal with Gemini AI Description Generator */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-[#2D5A27]/20 text-[#2C2C2C]">
             
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-[#2D5A27] text-[#E6B325] flex items-center justify-center font-bold">
                   +
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-900">Upload New Rural Product</h3>
-                  <p className="text-xs text-slate-500">Sell directly to conscious urban buyers across India</p>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">{t.uploadNewProduct}</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Sell directly to conscious urban buyers across India</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -977,98 +1094,98 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
             <form onSubmit={handleCreateProduct} className="space-y-4 pt-4 text-xs">
               
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Product Name / Title *
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t.productTitleLabel} *
                 </label>
                 <input
                   type="text"
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Handcrafted Madhubani Tussar Silk Dupatta"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                  placeholder={t.productNamePlaceholder}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Craft / Farm Category
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.allCategories}
                   </label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as any)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#2D5A27]"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-[#2D5A27]"
                   >
-                    <option value="textiles">Handloom & Textiles</option>
-                    <option value="spices">Organic Spices & Grains</option>
-                    <option value="pottery">Terracotta & Clay Pottery</option>
-                    <option value="honey_oils">Raw Honey & Cold-Pressed Oils</option>
-                    <option value="bamboo_wood">Bamboo & Wood Craft</option>
+                    <option value="textiles">{t.catTextiles}</option>
+                    <option value="spices">{t.catSpices}</option>
+                    <option value="pottery">{t.catPottery}</option>
+                    <option value="honey_oils">{t.catHoneyOils}</option>
+                    <option value="bamboo_wood">{t.catBambooWood}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Direct Fair Price (₹ INR) *
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.directFairPrice} *
                   </label>
                   <input
                     type="number"
                     required
                     value={newPrice}
                     onChange={(e) => setNewPrice(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Available Stock Quantity
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.stockQuantity}
                   </label>
                   <input
                     type="number"
                     value={newStock}
                     onChange={(e) => setNewStock(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Selling Unit
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.sellingUnit}
                   </label>
                   <input
                     type="text"
                     value={newUnit}
                     onChange={(e) => setNewUnit(e.target.value)}
                     placeholder="piece, 500g pack, pot, 1L bottle"
-                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Materials / Natural Ingredients (comma-separated)
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t.materialsIngredients}
                 </label>
                 <input
                   type="text"
                   value={newMaterials}
                   onChange={(e) => setNewMaterials(e.target.value)}
                   placeholder="Pure Silk, Indigo, Turmeric Dye, Bamboo"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                 />
               </div>
 
               {/* AI Auto-Generate Button */}
-              <div className="bg-[#E6B325]/15 border border-[#E6B325]/30 p-3 rounded-2xl flex items-center justify-between">
+              <div className="bg-[#E6B325]/15 dark:bg-amber-950/40 border border-[#E6B325]/30 dark:border-amber-700/40 p-3 rounded-2xl flex items-center justify-between">
                 <div>
-                  <div className="font-semibold text-xs text-[#2D5A27] flex items-center gap-1.5">
+                  <div className="font-semibold text-xs text-[#2D5A27] dark:text-amber-300 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-[#C69516]" />
-                    <span>Gemini AI Product Storyteller</span>
+                    <span>{t.aiStoryteller}</span>
                   </div>
-                  <p className="text-[10px] text-slate-600">
+                  <p className="text-[10px] text-slate-600 dark:text-slate-400">
                     Auto-generate authentic artisan story, highlights & fair pricing with 1 click.
                   </p>
                 </div>
@@ -1076,7 +1193,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   type="button"
                   onClick={handleAIGenerateDescription}
                   disabled={aiGenerating}
-                  className="px-3 py-1.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {aiGenerating ? (
                     <>
@@ -1086,58 +1203,58 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5 text-[#E6B325]" />
-                      <span>Generate with AI</span>
+                      <span>{t.generateWithAi}</span>
                     </>
                   )}
                 </button>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Product Description & Features
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t.specifications}
                 </label>
                 <textarea
                   rows={3}
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   placeholder="Describe your craft details, size, and care instructions..."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Artisan Collective Provenance Story
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t.artisanStoryTitle}
                 </label>
                 <textarea
                   rows={2}
                   value={newArtisanStory}
                   onChange={(e) => setNewArtisanStory(e.target.value)}
                   placeholder="Who made this? Share how this product supports your family or village SHG..."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-medium cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium cursor-pointer"
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={submittingProduct}
-                  className="px-5 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submittingProduct ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-[#E6B325]" />
-                      <span>Publishing to Marketplace...</span>
+                      <span>Publishing...</span>
                     </>
                   ) : (
-                    <span>Publish Product to Gram AI</span>
+                    <span>{t.publishProductBtn}</span>
                   )}
                 </button>
               </div>

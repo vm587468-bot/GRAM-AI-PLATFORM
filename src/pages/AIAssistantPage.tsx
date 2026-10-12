@@ -15,6 +15,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ChatMessage {
   id: string;
@@ -25,6 +26,7 @@ interface ChatMessage {
 
 export const AIAssistantPage: React.FC = () => {
   const { currentUser, role } = useAuth();
+  const { t, language } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'msg-init',
@@ -166,21 +168,21 @@ export const AIAssistantPage: React.FC = () => {
     <div className="container mx-auto px-4 max-w-4xl py-8 space-y-6">
       
       {/* Assistant Header */}
-      <div className="bg-white rounded-3xl p-6 border border-[#2D5A27]/20 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 border border-[#2D5A27]/20 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-[#2D5A27] text-[#E6B325] flex items-center justify-center font-bold shadow-md">
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-bold font-serif text-slate-900">
+              <h1 className="text-lg sm:text-xl font-bold font-serif text-slate-900 dark:text-white">
                 Gram Sahayak AI
               </h1>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#E6B325]/20 text-[#2D5A27] border border-[#E6B325]/40">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#E6B325]/20 dark:bg-amber-950/60 text-[#2D5A27] dark:text-amber-300 border border-[#E6B325]/40 dark:border-amber-700/40">
                 Gemini 3.8 Flash
               </span>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Rural Enterprise Copilot · Voice & Multilingual Advisor
             </p>
           </div>
@@ -188,11 +190,11 @@ export const AIAssistantPage: React.FC = () => {
 
         {/* Language selector */}
         <div className="flex items-center gap-2">
-          <Languages className="w-4 h-4 text-[#2D5A27]" />
+          <Languages className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400" />
           <select
             value={selectedLanguage}
             onChange={(e) => setSelectedLanguage(e.target.value as any)}
-            className="text-xs font-semibold p-2 rounded-xl bg-[#F8F5F0] border border-slate-200 text-slate-800 focus:outline-none focus:border-[#2D5A27]"
+            className="text-xs font-semibold p-2 rounded-xl bg-[#F8F5F0] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2D5A27]"
           >
             <option value="English">English (Advice)</option>
             <option value="Hindi">हिंदी (Hindi Advice)</option>
@@ -206,7 +208,7 @@ export const AIAssistantPage: React.FC = () => {
 
       {/* Suggested Prompt Chips */}
       <div className="space-y-1.5">
-        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+        <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
           <Lightbulb className="w-3.5 h-3.5 text-[#E6B325]" />
           <span>Recommended Practical Inquiries</span>
         </div>
@@ -215,7 +217,7 @@ export const AIAssistantPage: React.FC = () => {
             <button
               key={idx}
               onClick={() => handleSendMessage(chip)}
-              className="text-left p-2.5 rounded-xl bg-white hover:bg-[#F8F5F0] border border-slate-200/80 hover:border-[#2D5A27]/40 text-xs text-slate-700 transition-colors shadow-2xs cursor-pointer"
+              className="text-left p-2.5 rounded-xl bg-white dark:bg-[#1E293B] hover:bg-[#F8F5F0] dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 hover:border-[#2D5A27]/40 dark:hover:border-emerald-500/40 text-xs text-slate-700 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer"
             >
               "{chip}"
             </button>
@@ -224,7 +226,7 @@ export const AIAssistantPage: React.FC = () => {
       </div>
 
       {/* Chat Messages Log */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm min-h-[420px] max-h-[550px] overflow-y-auto space-y-4">
+      <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm min-h-[420px] max-h-[550px] overflow-y-auto space-y-4 transition-colors">
         {messages.map((msg) => {
           const isAI = msg.sender === 'assistant';
           const isSpeaking = speakingMessageId === msg.id;
@@ -243,8 +245,8 @@ export const AIAssistantPage: React.FC = () => {
               <div
                 className={`max-w-[85%] rounded-2xl p-4 space-y-2 leading-relaxed ${
                   isAI
-                    ? 'bg-[#F8F5F0] text-slate-800 border border-[#2D5A27]/10'
-                    : 'bg-[#2D5A27] text-white shadow-xs'
+                    ? 'bg-[#F8F5F0] dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border border-[#2D5A27]/10 dark:border-slate-700'
+                    : 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-xs'
                 }`}
               >
                 <div className="flex items-center justify-between text-[10px] opacity-70">
@@ -257,12 +259,12 @@ export const AIAssistantPage: React.FC = () => {
                 </div>
 
                 {isAI && (
-                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400">Rural Growth Intelligence</span>
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 dark:text-slate-400">Rural Growth Intelligence</span>
                     <button
                       onClick={() => handleSpeak(msg.text, msg.id)}
                       className={`flex items-center gap-1 font-semibold cursor-pointer ${
-                        isSpeaking ? 'text-amber-600' : 'text-[#2D5A27] hover:underline'
+                        isSpeaking ? 'text-amber-600 dark:text-amber-400' : 'text-[#2D5A27] dark:text-emerald-400 hover:underline'
                       }`}
                     >
                       {isSpeaking ? (
@@ -282,7 +284,7 @@ export const AIAssistantPage: React.FC = () => {
               </div>
 
               {!isAI && (
-                <div className="w-8 h-8 rounded-xl bg-slate-800 text-white flex items-center justify-center shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-xl bg-slate-800 dark:bg-slate-700 text-white flex items-center justify-center shrink-0 mt-1">
                   <User className="w-4 h-4" />
                 </div>
               )}
@@ -291,7 +293,7 @@ export const AIAssistantPage: React.FC = () => {
         })}
 
         {loading && (
-          <div className="flex items-center gap-3 text-xs text-slate-500 py-2">
+          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 py-2">
             <div className="w-8 h-8 rounded-xl bg-[#2D5A27] text-[#E6B325] flex items-center justify-center shrink-0">
               <Loader2 className="w-4 h-4 animate-spin" />
             </div>
@@ -303,7 +305,7 @@ export const AIAssistantPage: React.FC = () => {
       </div>
 
       {/* Input Form with Voice Button */}
-      <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-md">
+      <div className="bg-white dark:bg-[#1E293B] p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md transition-colors">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -318,11 +320,11 @@ export const AIAssistantPage: React.FC = () => {
             className={`p-2.5 rounded-xl transition-all cursor-pointer ${
               isRecording 
                 ? 'bg-rose-500 text-white animate-pulse' 
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
             }`}
             title={isRecording ? 'Listening... click to stop' : 'Click to speak in Hindi or English'}
           >
-            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-[#2D5A27]" />}
+            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400" />}
           </button>
 
           <input
@@ -330,21 +332,21 @@ export const AIAssistantPage: React.FC = () => {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder={isRecording ? 'Listening to your voice...' : 'Ask about pricing, PM Vishwakarma subsidy, packaging or marketing...'}
-            className="flex-1 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+            className="flex-1 px-3 py-2 text-xs text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none bg-transparent"
           />
 
           <button
             type="submit"
             disabled={!inputText.trim() || loading}
-            className="px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-40 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-40 cursor-pointer"
           >
             <span>Ask</span>
-            <Send className="w-3.5 h-3.5 text-[#E6B325]" />
+            <Send className="w-3.5 h-3.5 text-[#E6B325] dark:text-amber-300" />
           </button>
         </form>
 
         {isRecording && (
-          <div className="text-[11px] text-rose-600 font-semibold px-2 pt-1 flex items-center gap-1.5">
+          <div className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold px-2 pt-1 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
             <span>Microphone active. Speak naturally in {selectedLanguage}...</span>
           </div>

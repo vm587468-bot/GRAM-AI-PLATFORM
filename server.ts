@@ -11,11 +11,12 @@ import {
   INITIAL_USERS,
   INITIAL_PRODUCTS,
   INITIAL_ORDERS,
-  INITIAL_LEARNING_MODULES,
   INITIAL_REVIEWS,
+  INITIAL_DEALS,
+  INITIAL_MESSAGES,
   INITIAL_TICKETS
 } from './server/seedData';
-import { Product, Order, Review, SupportTicket } from './src/types';
+import { Product, Order, Review, SupportTicket, DealOffer, SellerMessage } from './src/types';
 
 dotenv.config();
 
@@ -29,7 +30,8 @@ let dbUsers = [...INITIAL_USERS];
 let dbProducts: Product[] = [...INITIAL_PRODUCTS];
 let dbOrders: Order[] = [...INITIAL_ORDERS];
 let dbReviews: Review[] = [...INITIAL_REVIEWS];
-let dbLearning = [...INITIAL_LEARNING_MODULES];
+let dbDeals: DealOffer[] = [...INITIAL_DEALS];
+let dbMessages: SellerMessage[] = [...INITIAL_MESSAGES];
 let dbTickets: SupportTicket[] = [...INITIAL_TICKETS];
 
 // Initialize Gemini SDK with User-Agent header as required
@@ -114,8 +116,13 @@ app.post('/api/auth/switch-role', (req: Request, res: Response) => {
 
 // ==================== PRODUCTS ROUTES ====================
 app.get('/api/products', (req: Request, res: Response) => {
-  const { category, search, artisanId } = req.query;
+  const { category, search, artisanId, condition, verifiedOnly, inStockOnly, minPrice, maxPrice, sort } = req.query;
   let results = [...dbProducts];
+
+  // Exclude paused or rejected items unless artisan is viewing own items
+  if (!artisanId) {
+    results = results.filter(p => p.moderationStatus !== 'paused');
+  }
 
   if (category && category !== 'all') {
     const cat = String(category).toLowerCase();
@@ -148,15 +155,49 @@ app.get('/api/products', (req: Request, res: Response) => {
     });
   }
 
+  if (condition && condition !== 'all') {
+    results = results.filter(p => p.condition === condition);
+  }
+
+  if (verifiedOnly === 'true') {
+    results = results.filter(p => p.verifiedSeller && p.authenticityStatus === 'verified');
+  }
+
+  if (inStockOnly === 'true') {
+    results = results.filter(p => p.inStock && p.stock > 0);
+  }
+
+  if (minPrice) {
+    results = results.filter(p => p.price >= Number(minPrice));
+  }
+
+  if (maxPrice) {
+    results = results.filter(p => p.price <= Number(maxPrice));
+  }
+
   if (search && typeof search === 'string') {
     const q = search.trim().toLowerCase();
+    const queryTerms = q.split(/\s+/).filter(Boolean);
+
     results = results.filter(p => {
       const inTitle = p.title.toLowerCase().includes(q);
       const inDesc = p.description.toLowerCase().includes(q);
       const inCat = p.category.toLowerCase().includes(q);
       const inArtisan = p.artisanName.toLowerCase().includes(q);
       const inLoc = p.artisanLocation.toLowerCase().includes(q);
+      const inBrand = (p.brand || '').toLowerCase().includes(q);
+      const inModel = (p.model || '').toLowerCase().includes(q);
       const inMat = Array.isArray(p.materials) && p.materials.some(m => m.toLowerCase().includes(q));
+
+      // Check if all individual query terms are contained across product metadata
+      const termsMatch = queryTerms.every(term => 
+        p.title.toLowerCase().includes(term) ||
+        p.description.toLowerCase().includes(term) ||
+        (p.brand || '').toLowerCase().includes(term) ||
+        (p.model || '').toLowerCase().includes(term) ||
+        p.category.toLowerCase().includes(term) ||
+        p.artisanName.toLowerCase().includes(term)
+      );
 
       // Semantic keyword matching for Clothes, Sports, Ration, etc.
       const isClothesQuery = ['clothes', 'clothing', 'wear', 'apparel', 'shirt', 'kurta', 'dress', 'fashion', 't-shirt', 'saree', 'dupatta', 'shawl', 'textile'].some(k => q.includes(k));
@@ -168,12 +209,23 @@ app.get('/api/products', (req: Request, res: Response) => {
       const isRationQuery = ['ration', 'grocery', 'groceries', 'food', 'grain', 'grains', 'rice', 'wheat', 'atta', 'flour', 'dal', 'pulse', 'oil', 'ghee', 'sugar', 'millet', 'turmeric', 'spice', 'honey'].some(k => q.includes(k));
       const matchRation = isRationQuery && (p.category === 'ration' || p.category === 'spices' || p.category === 'honey_oils');
 
-      return inTitle || inDesc || inCat || inArtisan || inLoc || inMat || matchClothes || matchSports || matchRation;
+      return inTitle || inBrand || inModel || inDesc || inCat || inArtisan || inLoc || inMat || termsMatch || matchClothes || matchSports || matchRation;
     });
   }
 
   if (artisanId) {
     results = results.filter(p => p.artisanId === artisanId);
+  }
+
+  // Sorting
+  if (sort === 'price_asc') {
+    results.sort((a, b) => a.price - b.price);
+  } else if (sort === 'price_desc') {
+    results.sort((a, b) => b.price - a.price);
+  } else if (sort === 'rating') {
+    results.sort((a, b) => b.rating - a.rating);
+  } else if (sort === 'newest') {
+    results.sort((a, b) => (b.id > a.id ? 1 : -1));
   }
 
   res.json({ products: results });
@@ -783,11 +835,43 @@ app.post('/api/schemes/calculate', (req: Request, res: Response) => {
   });
 });
 
-// ==================== LEARNING & REVIEWS ====================
-app.get('/api/learning', (_req: Request, res: Response) => {
-  res.json({ modules: dbLearning });
+// ==================== DEALS, OFFERS & SCHEMES ====================
+app.get('/api/deals', (_req: Request, res: Response) => {
+  res.json({ deals: dbDeals });
 });
 
+app.post('/api/deals/apply-coupon', (req: Request, res: Response) => {
+  const { couponCode, orderTotal = 0 } = req.body;
+  if (!couponCode) {
+    return res.status(400).json({ valid: false, message: 'Please enter a coupon code.' });
+  }
+
+  const cleanCode = String(couponCode).trim().toUpperCase();
+  const deal = dbDeals.find(d => d.couponCode === cleanCode && d.verified);
+
+  if (!deal) {
+    return res.status(404).json({ valid: false, message: 'Invalid or expired coupon code.' });
+  }
+
+  if (orderTotal < deal.minOrderValue) {
+    return res.status(400).json({ 
+      valid: false, 
+      message: `Minimum order value for ${cleanCode} is ₹${deal.minOrderValue}. Add more authentic products to qualify.` 
+    });
+  }
+
+  const discountAmount = Math.round((Number(orderTotal) * deal.discountPercentage) / 100);
+  res.json({
+    valid: true,
+    couponCode: deal.couponCode,
+    discountPercentage: deal.discountPercentage,
+    discountAmount,
+    newTotal: Math.max(0, Number(orderTotal) - discountAmount),
+    message: `${deal.discountPercentage}% Discount Applied via ${deal.couponCode}!`
+  });
+});
+
+// ==================== REVIEWS WITH CRITERIA & HELPFULNESS ====================
 app.get('/api/reviews', (req: Request, res: Response) => {
   const { productId } = req.query;
   let results = dbReviews;
@@ -798,21 +882,48 @@ app.get('/api/reviews', (req: Request, res: Response) => {
 });
 
 app.post('/api/reviews', (req: Request, res: Response) => {
-  const { productId, userId, userName, rating, comment } = req.body;
+  const { 
+    productId, 
+    userId, 
+    userName, 
+    rating, 
+    qualityRating, 
+    durabilityRating, 
+    valueForMoneyRating, 
+    sellerExperienceRating, 
+    comment, 
+    reviewImages 
+  } = req.body;
+
+  // Check for duplicate review for the same purchase
+  const existing = dbReviews.find(r => r.productId === productId && r.userId === userId);
+  if (existing) {
+    return res.status(400).json({ error: 'You have already submitted a review for this product.' });
+  }
+
+  const overall = Number(rating) || 5;
   const newRev: Review = {
     id: `rev-${Date.now()}`,
     productId,
     userId: userId || 'user-customer-1',
     userName: userName || 'Satisfied Patron',
     userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-    rating: Number(rating) || 5,
-    comment: comment || 'Wonderful traditional item, direct from village artisan!',
+    rating: overall,
+    qualityRating: Number(qualityRating) || overall,
+    durabilityRating: Number(durabilityRating) || overall,
+    valueForMoneyRating: Number(valueForMoneyRating) || overall,
+    sellerExperienceRating: Number(sellerExperienceRating) || overall,
+    comment: comment || 'Wonderful authentic item direct from verified rural producers!',
     date: new Date().toISOString().split('T')[0],
-    verifiedPurchase: true
+    verifiedPurchase: true,
+    reviewImages: Array.isArray(reviewImages) ? reviewImages : [],
+    helpfulCount: 0,
+    reported: false
   };
+
   dbReviews.unshift(newRev);
 
-  // Update product rating
+  // Update product average rating & review count
   const prod = dbProducts.find(p => p.id === productId);
   if (prod) {
     const prodReviews = dbReviews.filter(r => r.productId === productId);
@@ -822,6 +933,54 @@ app.post('/api/reviews', (req: Request, res: Response) => {
   }
 
   res.status(201).json({ review: newRev });
+});
+
+app.post('/api/reviews/:id/helpful', (req: Request, res: Response) => {
+  const rev = dbReviews.find(r => r.id === req.params.id);
+  if (!rev) return res.status(404).json({ error: 'Review not found' });
+  rev.helpfulCount = (rev.helpfulCount || 0) + 1;
+  res.json({ success: true, helpfulCount: rev.helpfulCount });
+});
+
+app.post('/api/reviews/:id/report', (req: Request, res: Response) => {
+  const rev = dbReviews.find(r => r.id === req.params.id);
+  if (!rev) return res.status(404).json({ error: 'Review not found' });
+  const { reason } = req.body;
+  rev.reported = true;
+  rev.reportReason = reason || 'Customer flagged review for moderation.';
+  res.json({ success: true, message: 'Review flagged for admin moderation review.' });
+});
+
+// ==================== PRODUCT REPORTING ====================
+app.post('/api/products/:id/report', (req: Request, res: Response) => {
+  const prod = dbProducts.find(p => p.id === req.params.id);
+  if (!prod) return res.status(404).json({ error: 'Product not found' });
+  const { reason } = req.body;
+  prod.moderationStatus = 'reported';
+  prod.reportedReason = reason || 'Reported by patron for quality/authenticity inspection.';
+  res.json({ success: true, message: 'Listing has been flagged for audit review by admin.' });
+});
+
+// ==================== ORDER CANCELLATIONS & RETURNS ====================
+app.post('/api/orders/:id/cancel', (req: Request, res: Response) => {
+  const order = dbOrders.find(o => o.id === req.params.id || o.trackingId === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (order.orderStatus === 'delivered') {
+    return res.status(400).json({ error: 'Delivered orders cannot be cancelled. You can request a return instead.' });
+  }
+  const { reason } = req.body;
+  order.orderStatus = 'cancelled';
+  order.cancellationReason = reason || 'Customer requested order cancellation before delivery.';
+  res.json({ success: true, order, message: 'Order has been cancelled and UPI escrow refund initiated.' });
+});
+
+app.post('/api/orders/:id/return', (req: Request, res: Response) => {
+  const order = dbOrders.find(o => o.id === req.params.id || o.trackingId === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  const { reason } = req.body;
+  order.orderStatus = 'return_requested';
+  order.returnReason = reason || 'Customer requested return and replacement inspection.';
+  res.json({ success: true, order, message: 'Return request submitted. India Post pickup scheduled.' });
 });
 
 // ==================== SUPPORT TICKETS ====================
@@ -1423,6 +1582,152 @@ app.get('/api/engineering-core', (_req: Request, res: Response) => {
       }
     }
   });
+});
+
+// ==================== ADMIN OPERATIONS & USER MANAGEMENT ====================
+app.get('/api/admin/users', (req: Request, res: Response) => {
+  const { search, status, role, loginType } = req.query;
+  let results = [...dbUsers];
+
+  if (search && typeof search === 'string') {
+    const q = search.toLowerCase();
+    results = results.filter(u => 
+      u.name.toLowerCase().includes(q) || 
+      u.email.toLowerCase().includes(q) ||
+      u.phone.toLowerCase().includes(q)
+    );
+  }
+
+  if (status && status !== 'all') {
+    results = results.filter(u => u.accountStatus === status);
+  }
+
+  if (role && role !== 'all') {
+    results = results.filter(u => u.role === role);
+  }
+
+  if (loginType && loginType !== 'all') {
+    results = results.filter(u => u.lastLoginType === loginType);
+  }
+
+  const stats = {
+    totalUsers: dbUsers.length,
+    activeSessions: dbUsers.filter(u => u.lastLoginType === 'recent').length,
+    neverLoggedInCount: dbUsers.filter(u => u.lastLoginType === 'never').length,
+    unknownLoginCount: dbUsers.filter(u => u.lastLoginType === 'unknown').length,
+    inactiveCount: dbUsers.filter(u => u.lastLoginType === 'inactive').length,
+    suspendedCount: dbUsers.filter(u => u.accountStatus === 'suspended').length
+  };
+
+  res.json({ users: results, stats });
+});
+
+app.post('/api/admin/users/:id/status', (req: Request, res: Response) => {
+  const user = dbUsers.find(u => u.id === req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const { status, reason, adminName = 'Pooja Venkatesh (Admin)' } = req.body;
+  if (status !== 'active' && status !== 'suspended' && status !== 'pending') {
+    return res.status(400).json({ error: 'Invalid account status' });
+  }
+
+  const prevStatus = user.accountStatus;
+  user.accountStatus = status;
+
+  user.suspensionAuditTrail.unshift({
+    action: status === 'suspended' ? 'suspend' : 'reactivate',
+    byAdmin: adminName,
+    reason: reason || `Admin updated status from ${prevStatus} to ${status}.`,
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({ success: true, user, message: `Account status updated to ${status}.` });
+});
+
+// Admin Product Moderation
+app.get('/api/admin/moderation', (_req: Request, res: Response) => {
+  const reportedProducts = dbProducts.filter(p => p.moderationStatus === 'reported' || p.moderationStatus === 'pending');
+  const flaggedReviews = dbReviews.filter(r => r.reported);
+
+  res.json({
+    reportedProducts,
+    flaggedReviews,
+    stats: {
+      pendingProductsCount: reportedProducts.length,
+      flaggedReviewsCount: flaggedReviews.length
+    }
+  });
+});
+
+app.post('/api/admin/products/:id/moderate', (req: Request, res: Response) => {
+  const prod = dbProducts.find(p => p.id === req.params.id);
+  if (!prod) return res.status(404).json({ error: 'Product not found' });
+
+  const { action, reason } = req.body; // 'approve' | 'pause' | 'delete'
+  if (action === 'approve') {
+    prod.moderationStatus = 'approved';
+    prod.reportedReason = undefined;
+  } else if (action === 'pause') {
+    prod.moderationStatus = 'paused';
+    prod.reportedReason = reason || 'Temporarily paused by admin for verification.';
+  } else if (action === 'delete') {
+    dbProducts = dbProducts.filter(p => p.id !== prod.id);
+    return res.json({ success: true, message: 'Listing permanently removed by admin.' });
+  }
+
+  res.json({ success: true, product: prod, message: `Product moderation action "${action}" applied.` });
+});
+
+app.post('/api/admin/reviews/:id/moderate', (req: Request, res: Response) => {
+  const rev = dbReviews.find(r => r.id === req.params.id);
+  if (!rev) return res.status(404).json({ error: 'Review not found' });
+
+  const { action } = req.body; // 'keep' | 'delete'
+  if (action === 'delete') {
+    dbReviews = dbReviews.filter(r => r.id !== rev.id);
+    return res.json({ success: true, message: 'Flagged review deleted.' });
+  } else {
+    rev.reported = false;
+    rev.reportReason = undefined;
+    return res.json({ success: true, review: rev, message: 'Review cleared and retained.' });
+  }
+});
+
+// ==================== BUYER-SELLER MESSAGING ====================
+app.get('/api/messages', (req: Request, res: Response) => {
+  const { userId, productId } = req.query;
+  let results = [...dbMessages];
+  if (userId) {
+    results = results.filter(m => m.senderId === userId || m.recipientId === userId);
+  }
+  if (productId) {
+    results = results.filter(m => m.productId === productId);
+  }
+  res.json({ messages: results });
+});
+
+app.post('/api/messages', (req: Request, res: Response) => {
+  const { productId, productTitle, senderId, senderName, senderRole, recipientId, recipientName, text } = req.body;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'Message text required' });
+  }
+
+  const newMsg: SellerMessage = {
+    id: `msg-${Date.now()}`,
+    productId: productId || 'prod-1',
+    productTitle: productTitle || 'Handcrafted Rural Product',
+    senderId: senderId || 'user-customer-1',
+    senderName: senderName || 'Valued Patron',
+    senderRole: senderRole || 'customer',
+    recipientId: recipientId || 'user-artisan-1',
+    recipientName: recipientName || 'Artisan Lead',
+    text: text.trim(),
+    timestamp: new Date().toISOString(),
+    read: false
+  };
+
+  dbMessages.push(newMsg);
+  res.status(201).json({ message: newMsg });
 });
 
 // ==================== VITE & STATIC FILES SETUP ====================

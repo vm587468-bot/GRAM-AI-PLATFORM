@@ -22,7 +22,7 @@ export const INITIAL_USERS: User[] = [
     phone: '+91 94140 23411',
     location: 'Molela Village, Rajsamand',
     state: 'Rajasthan',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rameshwar',
     bio: 'Fourth generation terracotta craftsman specializing in organic earthenware, clay cooking handis, and terracotta water coolers.',
     shgName: 'Mitti Shilp Samiti',
     joinedDate: '2024-01-18'

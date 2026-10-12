@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
@@ -12,25 +14,25 @@ import { MarketplacePage } from './pages/MarketplacePage';
 import { EntrepreneurDashboard } from './pages/EntrepreneurDashboard';
 import { CustomerDashboard } from './pages/CustomerDashboard';
 import { LogisticsTrackingPage } from './pages/LogisticsTrackingPage';
-import { LearningHubPage } from './pages/LearningHubPage';
-import { EngineeringCorePage } from './pages/EngineeringCorePage';
+import { DealsAndSchemesPage } from './pages/DealsAndSchemesPage';
 import { AIAssistantPage } from './pages/AIAssistantPage';
 import { SupportPage } from './pages/SupportPage';
-
-import { SupportedLanguage } from './i18n';
+import { AdminPanelPage } from './pages/AdminPanelPage';
+import { VillageConnectPage } from './pages/VillageConnectPage';
+import { GovernmentSchemesSection } from './components/GovernmentSchemesSection';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<string>('landing');
-  const [currentLang, setCurrentLang] = useState<SupportedLanguage>('en');
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [activeTrackingId, setActiveTrackingId] = useState<string>('GRAM-88219');
   const [marketplaceSearch, setMarketplaceSearch] = useState<string>('');
+  const { language } = useLanguage();
 
   const handleOpenCheckout = () => {
     setIsCheckoutOpen(true);
   };
 
-  const handlePaymentSuccess = (orderId: string, trackingId: string) => {
+  const handlePaymentSuccess = (_orderId: string, trackingId: string) => {
     setActiveTrackingId(trackingId);
     setActiveTab('logistics');
   };
@@ -46,13 +48,11 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8F5F0] text-[#2C2C2C]">
+    <div className="min-h-screen flex flex-col bg-[#F8FAF7] dark:bg-[#0F172A] text-[#1E293B] dark:text-[#F8FAFC] transition-colors duration-200">
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        currentLang={currentLang}
-        setCurrentLang={setCurrentLang}
       />
 
       {/* Main Page Content */}
@@ -60,15 +60,21 @@ function AppContent() {
         {activeTab === 'landing' && (
           <LandingPage
             setActiveTab={setActiveTab}
-            currentLang={currentLang}
           />
+        )}
+
+        {activeTab === 'schemes' && (
+          <div className="py-6 sm:py-10 bg-[#F8FAF7] dark:bg-[#0F172A]">
+            <GovernmentSchemesSection currentLang={language} />
+          </div>
         )}
 
         {activeTab === 'marketplace' && (
           <MarketplacePage
             onOpenCheckout={handleOpenCheckout}
-            currentLang={currentLang}
+            currentLang={language}
             externalSearch={marketplaceSearch}
+            setActiveTab={setActiveTab}
           />
         )}
 
@@ -85,6 +91,20 @@ function AppContent() {
           />
         )}
 
+        {activeTab === 'village-connect' && (
+          <VillageConnectPage
+            currentLang={language}
+            setActiveTab={setActiveTab}
+          />
+        )}
+
+        {activeTab === 'admin' && (
+          <AdminPanelPage
+            currentLang={language}
+            setActiveTab={setActiveTab}
+          />
+        )}
+
         {activeTab === 'logistics' && (
           <LogisticsTrackingPage
             initialTrackingId={activeTrackingId}
@@ -92,13 +112,10 @@ function AppContent() {
           />
         )}
 
-        {activeTab === 'learning' && (
-          <LearningHubPage />
-        )}
-
-        {activeTab === 'engineering' && (
-          <EngineeringCorePage
+        {activeTab === 'deals' && (
+          <DealsAndSchemesPage
             setActiveTab={setActiveTab}
+            onOpenCheckout={handleOpenCheckout}
           />
         )}
 
@@ -141,10 +158,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <AppContent />
-      </CartProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <CartProvider>
+            <AppContent />
+          </CartProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

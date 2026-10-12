@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Order } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface CustomerDashboardProps {
   setActiveTab: (tab: string) => void;
@@ -26,6 +27,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   onTrackOrder 
 }) => {
   const { currentUser } = useAuth();
+  const { t } = useLanguage();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -165,7 +167,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     <div className="container mx-auto px-4 max-w-6xl py-8 space-y-8">
       
       {/* Welcome Banner */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#2D5A27]/15 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 sm:p-8 border border-[#2D5A27]/15 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
         <div className="flex items-center gap-4">
           <img
             src={currentUser.avatar}
@@ -173,51 +175,51 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             className="w-14 h-14 rounded-2xl object-cover border-2 border-[#E6B325] shadow-xs"
           />
           <div>
-            <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900">
-              Welcome back, {currentUser.name}
+            <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
+              {t.welcomeBack}, {currentUser.name}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Conscious Patron · Supporting rural village artisans directly
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {t.consciousPatron}
             </p>
-            <div className="flex items-center gap-2 text-[11px] text-emerald-800 font-medium mt-1">
+            <div className="flex items-center gap-2 text-[11px] text-emerald-800 dark:text-emerald-400 font-medium mt-1">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>You have supported 3 village cooperatives this season</span>
+              <span>{t.supportedVillagesCount}</span>
             </div>
           </div>
         </div>
 
         <button
           onClick={() => setActiveTab('marketplace')}
-          className="px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs transition-all shadow-md flex items-center gap-2 self-start md:self-auto cursor-pointer"
+          className="px-4 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-md flex items-center gap-2 self-start md:self-auto cursor-pointer"
         >
-          <span>Explore More Village Crafts</span>
-          <ArrowRight className="w-4 h-4 text-[#E6B325]" />
+          <span>{t.exploreMoreCrafts}</span>
+          <ArrowRight className="w-4 h-4 text-[#E6B325] dark:text-amber-300" />
         </button>
       </div>
 
       {/* Orders List */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900 font-serif">
-            Your Orders & Consignments ({orders.length})
+          <h2 className="text-base font-bold text-slate-900 dark:text-white font-serif">
+            {t.myOrders} ({orders.length})
           </h2>
-          <span className="text-xs text-slate-500">Live Postal & Hub Tracking Available</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{t.livePostalTrackingAvailable}</span>
         </div>
 
         {loading ? (
-          <div className="text-xs text-slate-400 py-12 text-center">Loading orders...</div>
+          <div className="text-xs text-slate-400 py-12 text-center">{t.loading}</div>
         ) : orders.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 space-y-3">
-            <Package className="w-12 h-12 mx-auto text-slate-300" />
-            <h3 className="text-sm font-bold text-slate-800">No orders placed yet</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Browse our direct village catalog to find authentic handmade textiles, organic spices, and unglazed terracotta cookware.
+          <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-800 space-y-3">
+            <Package className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600" />
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.noOrdersYet}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              {t.browseVillageCatalog}
             </p>
             <button
               onClick={() => setActiveTab('marketplace')}
-              className="px-4 py-2 rounded-xl bg-[#2D5A27] text-white text-xs font-semibold hover:bg-[#1E3D1A] cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-[#2D5A27] dark:bg-emerald-600 text-white text-xs font-semibold hover:bg-[#1E3D1A] dark:hover:bg-emerald-500 cursor-pointer"
             >
-              Shop Village Marketplace
+              {t.shopVillageMarketplace}
             </button>
           </div>
         ) : (
@@ -225,36 +227,36 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             {orders.map((order) => (
               <div 
                 key={order.id}
-                className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 hover:border-[#2D5A27]/30 transition-all"
+                className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 hover:border-[#2D5A27]/30 dark:hover:border-emerald-500/30 transition-all"
               >
                 {/* Order Top Meta */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800 text-xs">
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-slate-900">{order.id}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{order.id}</span>
                     <span className="text-slate-400">·</span>
-                    <span className="text-slate-500">{new Date(order.createdAt).toLocaleDateString()}</span>
+                    <span className="text-slate-500 dark:text-slate-400">{new Date(order.createdAt).toLocaleDateString()}</span>
                     <span className="text-slate-400">·</span>
-                    <span className="font-mono font-bold text-[#2D5A27] bg-[#2D5A27]/10 px-2 py-0.5 rounded">
+                    <span className="font-mono font-bold text-[#2D5A27] dark:text-emerald-400 bg-[#2D5A27]/10 dark:bg-emerald-950/40 px-2 py-0.5 rounded">
                       {order.trackingId}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      order.orderStatus === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
-                      order.orderStatus === 'out_for_delivery' ? 'bg-blue-100 text-blue-800' :
-                      order.orderStatus === 'dispatched' ? 'bg-purple-100 text-purple-800' :
-                      'bg-amber-100 text-amber-800'
+                      order.orderStatus === 'delivered' ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300' :
+                      order.orderStatus === 'out_for_delivery' ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300' :
+                      order.orderStatus === 'dispatched' ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300' :
+                      'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
                     }`}>
-                      {order.orderStatus.replace('_', ' ')}
+                      {order.orderStatus === 'delivered' ? t.deliveredSuccess : order.orderStatus === 'out_for_delivery' ? t.outForDeliveryStatus : order.orderStatus === 'dispatched' ? t.inTransit : order.orderStatus}
                     </span>
 
                     <button
                       onClick={() => onTrackOrder(order.trackingId)}
-                      className="px-3 py-1 rounded-lg bg-[#2D5A27] text-white hover:bg-[#1E3D1A] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                      className="px-3 py-1 rounded-lg bg-[#2D5A27] dark:bg-emerald-600 text-white hover:bg-[#1E3D1A] dark:hover:bg-emerald-500 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                     >
-                      <Truck className="w-3.5 h-3.5 text-[#E6B325]" />
-                      <span>Track Consignment</span>
+                      <Truck className="w-3.5 h-3.5 text-[#E6B325] dark:text-amber-300" />
+                      <span>{t.trackConsignment}</span>
                     </button>
                   </div>
                 </div>
@@ -262,29 +264,29 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 {/* Items in Order */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {order.items.map((item, idx) => (
-                    <div key={idx} className="flex gap-3 bg-[#F8F5F0]/60 p-3 rounded-2xl border border-slate-100 text-xs">
-                      <img src={item.imageUrl} alt={item.title} className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                    <div key={idx} className="flex gap-3 bg-[#F8F5F0]/60 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs">
+                      <img src={item.imageUrl} alt={item.title} className="w-16 h-16 rounded-xl object-cover border border-slate-200 dark:border-slate-700" />
                       <div className="flex-1 flex flex-col justify-between">
                         <div>
-                          <h4 className="font-bold text-slate-900 line-clamp-1">{item.title}</h4>
-                          <p className="text-[11px] text-slate-500">{item.artisanName}</p>
+                          <h4 className="font-bold text-slate-900 dark:text-white line-clamp-1">{item.title}</h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.artisanName}</p>
                         </div>
                         <div className="flex items-center justify-between pt-1">
-                          <span className="font-serif font-bold text-slate-800">₹{item.price} × {item.quantity}</span>
+                          <span className="font-serif font-bold text-slate-800 dark:text-slate-200">₹{item.price} × {item.quantity}</span>
                           <div className="flex items-center gap-3">
                             <button
                               onClick={() => handleOpenArtisanChat(item.artisanName, item.title, item.productId)}
-                              className="text-[11px] font-semibold text-slate-600 hover:text-[#2D5A27] flex items-center gap-1 cursor-pointer"
+                              className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-[#2D5A27] dark:hover:text-emerald-400 flex items-center gap-1 cursor-pointer"
                             >
-                              <MessageSquare className="w-3 h-3 text-[#2D5A27]" />
-                              <span>Chat with Artisan</span>
+                              <MessageSquare className="w-3 h-3 text-[#2D5A27] dark:text-emerald-400" />
+                              <span>{t.contactSeller}</span>
                             </button>
                             <button
                               onClick={() => handleOpenReview(item.productId, item.title)}
-                              className="text-[11px] font-semibold text-[#2D5A27] hover:underline flex items-center gap-1 cursor-pointer"
+                              className="text-[11px] font-semibold text-[#2D5A27] dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
                             >
                               <Star className="w-3 h-3 text-[#E6B325] fill-current" />
-                              <span>Leave Review</span>
+                              <span>{t.writeReview}</span>
                             </button>
                           </div>
                         </div>
@@ -294,29 +296,29 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 </div>
 
                 {/* Delivery and Escrow Status Strip */}
-                <div className="pt-2 flex flex-wrap items-center justify-between text-xs text-slate-600 gap-3 border-t border-slate-100">
+                <div className="pt-2 flex flex-wrap items-center justify-between text-xs text-slate-600 dark:text-slate-300 gap-3 border-t border-slate-100 dark:border-slate-800">
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5 text-slate-700">
-                      <MapPin className="w-3.5 h-3.5 text-[#2D5A27]" />
-                      <span>Hub Location: <strong>{order.currentHub}</strong></span>
+                    <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                      <MapPin className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+                      <span>{t.hubPickup}: <strong>{order.currentHub}</strong></span>
                     </div>
                     <div className="text-[11px] text-slate-400">
-                      Delivery OTP: <strong className="font-mono text-slate-700">{order.deliveryOtp}</strong> · Partner: {order.deliveryPartner}
+                      {t.handoffOtp}: <strong className="font-mono text-slate-700 dark:text-slate-200">{order.deliveryOtp}</strong> · {t.logisticsPartner}: {order.deliveryPartner}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <div className="text-[10px] text-slate-400 uppercase font-semibold">Total Paid via UPI</div>
-                      <div className="text-base font-bold font-serif text-[#2D5A27]">₹{order.totalAmount}</div>
+                      <div className="text-[10px] text-slate-400 uppercase font-semibold">{t.payableTotal} (UPI)</div>
+                      <div className="text-base font-bold font-serif text-[#2D5A27] dark:text-emerald-400">₹{order.totalAmount}</div>
                     </div>
 
                     <button
                       onClick={() => setSelectedInvoiceOrder(order)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
                     >
                       <FileText className="w-3.5 h-3.5 text-slate-500" />
-                      <span>GST Receipt</span>
+                      <span>{t.gstReceipt}</span>
                     </button>
                   </div>
                 </div>
@@ -329,32 +331,32 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       {/* Review Modal */}
       {reviewModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-[#2C2C2C]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-sm text-slate-900">Review Artisan Product</h3>
-              <button onClick={() => setReviewModalOpen(false)} className="text-slate-400 hover:text-slate-700">
+          <div className="bg-white dark:bg-[#1E293B] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t.reviewArtisanProduct}</h3>
+              <button onClick={() => setReviewModalOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {reviewSubmitted ? (
               <div className="py-8 text-center space-y-2">
-                <CheckCircle2 className="w-12 h-12 text-[#2D5A27] mx-auto" />
-                <h4 className="font-bold text-base text-slate-900">Thank you for supporting rural craft!</h4>
-                <p className="text-xs text-slate-500">Your feedback has been published and sent to the artisan.</p>
+                <CheckCircle2 className="w-12 h-12 text-[#2D5A27] dark:text-emerald-400 mx-auto" />
+                <h4 className="font-bold text-base text-slate-900 dark:text-white">{t.thankYouFeedback}</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Your feedback has been published and sent to the artisan.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmitReview} className="space-y-4 pt-4 text-xs">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                    Product
+                    {t.productTitleLabel}
                   </label>
-                  <p className="font-bold text-slate-800">{reviewProductTitle}</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">{reviewProductTitle}</p>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                    Your Rating
+                    {t.yourRating}
                   </label>
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((num) => (
@@ -374,23 +376,23 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                    Your Review & Experience
+                    {t.yourReviewExperience}
                   </label>
                   <textarea
                     required
                     rows={3}
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    placeholder="Share how the craftsmanship feels, packaging quality, or authentic traditional features..."
-                    className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#2D5A27]"
+                    placeholder={t.reviewPlaceholder}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-[#2D5A27]"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-[#2D5A27] text-white font-semibold text-xs hover:bg-[#1E3D1A] transition-colors shadow-md cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow-md cursor-pointer"
                 >
-                  Submit Verified Review
+                  {t.submitVerifiedReview}
                 </button>
               </form>
             )}
@@ -401,14 +403,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       {/* Invoice Modal */}
       {selectedInvoiceOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-[#2C2C2C] space-y-4">
+          <div className="bg-white dark:bg-[#1E293B] rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 space-y-4">
             
-            <div className="flex justify-between items-start pb-4 border-b border-slate-200">
+            <div className="flex justify-between items-start pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <div className="text-xl font-bold font-serif text-[#2D5A27]">Gram AI Direct Invoice</div>
-                <div className="text-xs text-slate-500">Tax Invoice & Fair Trade Remittance Receipt</div>
+                <div className="text-xl font-bold font-serif text-[#2D5A27] dark:text-emerald-400">{t.appName} {t.taxInvoice}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{t.gstReceipt}</div>
               </div>
-              <button onClick={() => setSelectedInvoiceOrder(null)} className="text-slate-400 hover:text-slate-700">
+              <button onClick={() => setSelectedInvoiceOrder(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -435,9 +437,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
               {/* Items Breakdown */}
               <div className="space-y-2 pt-2">
-                <div className="font-semibold text-slate-800">Purchased Items</div>
+                <div className="font-semibold text-slate-800 dark:text-slate-200">{t.shipmentContents}</div>
                 {selectedInvoiceOrder.items.map((it, idx) => (
-                  <div key={idx} className="flex justify-between border-b border-slate-100 pb-1.5">
+                  <div key={idx} className="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
                     <span>{it.quantity}x {it.title} ({it.artisanName})</span>
                     <span className="font-bold">₹{it.price * it.quantity}</span>
                   </div>
@@ -445,36 +447,36 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               </div>
 
               {/* Fair Trade Split Breakdown */}
-              <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200/60 space-y-1.5 text-[11px]">
-                <div className="font-bold text-emerald-900 flex items-center gap-1">
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-200/60 dark:border-emerald-800/60 space-y-1.5 text-[11px]">
+                <div className="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Fair Trade Settlement Transparency</span>
+                  <span>{t.fairTradeShareNotice}</span>
                 </div>
-                <div className="flex justify-between text-emerald-800">
-                  <span>Direct to Village Producer Collective (86%):</span>
+                <div className="flex justify-between text-emerald-800 dark:text-emerald-300">
+                  <span>{t.trustFairTrade} (86%):</span>
                   <span className="font-bold">₹{Math.round(selectedInvoiceOrder.totalAmount * 0.86)}</span>
                 </div>
-                <div className="flex justify-between text-emerald-800">
-                  <span>Postal Hub Consolidation & Nodal EV Freight:</span>
+                <div className="flex justify-between text-emerald-800 dark:text-emerald-300">
+                  <span>{t.trustPostalRelay} (11%):</span>
                   <span>₹{Math.round(selectedInvoiceOrder.totalAmount * 0.11)}</span>
                 </div>
-                <div className="flex justify-between text-emerald-800">
-                  <span>Gram AI Platform Maintenance (3%):</span>
+                <div className="flex justify-between text-emerald-800 dark:text-emerald-300">
+                  <span>{t.appName} (3%):</span>
                   <span>₹{Math.round(selectedInvoiceOrder.totalAmount * 0.03)}</span>
                 </div>
               </div>
 
               <div className="flex justify-between items-center pt-2 font-bold text-sm">
-                <span>Total Amount Paid:</span>
-                <span className="font-serif text-[#2D5A27] text-lg">₹{selectedInvoiceOrder.totalAmount}</span>
+                <span>{t.totalAmount}:</span>
+                <span className="font-serif text-[#2D5A27] dark:text-emerald-400 text-lg">₹{selectedInvoiceOrder.totalAmount}</span>
               </div>
             </div>
 
             <button
               onClick={() => setSelectedInvoiceOrder(null)}
-              className="w-full py-2.5 rounded-xl bg-[#2D5A27] text-white font-semibold text-xs hover:bg-[#1E3D1A] transition-colors cursor-pointer"
+              className="w-full py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-xs transition-colors cursor-pointer"
             >
-              Close Invoice
+              {t.close}
             </button>
           </div>
         </div>
@@ -483,17 +485,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       {/* Direct Chat with Artisan Modal */}
       {artisanChatModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 text-[#2C2C2C] flex flex-col h-[520px]">
+          <div className="bg-white dark:bg-[#1E293B] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col h-[520px]">
             
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#2D5A27] text-[#E6B325] flex items-center justify-center font-bold">
                   <MessageSquare className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">Chat with {chatArtisanName}</h3>
-                  <p className="text-[11px] text-slate-500">Regarding: {chatProductTitle}</p>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t.contactSeller}: {chatArtisanName}</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{chatProductTitle}</p>
                 </div>
               </div>
               <button 

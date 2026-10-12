@@ -23,6 +23,7 @@ import {
   X
 } from 'lucide-react';
 import { UNIVERSAL_AUDIO_LANGUAGES } from '../audioLanguages';
+import { useLanguage } from '../context/LanguageContext';
 
 export interface Scheme {
   id: string;
@@ -44,6 +45,7 @@ export interface Scheme {
 }
 
 export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () => {
+  const { t, language } = useLanguage();
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
   // Application Modal State
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [activeApplyScheme, setActiveApplyScheme] = useState<Scheme | null>(null);
-  const [applicantName, setApplicantName] = useState('Vedant Mishra');
+  const [applicantName, setApplicantName] = useState('Radha Devi');
   const [applicantPhone, setApplicantPhone] = useState('+91 94310 44521');
   const [applicantTrade, setApplicantTrade] = useState('Handloom Textiles & Rural Craft');
   const [desiredAmount, setDesiredAmount] = useState('300000');
@@ -248,11 +250,11 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
         <div className="max-w-3xl space-y-4 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E6B325]/20 text-[#E6B325] text-xs font-bold border border-[#E6B325]/30">
             <Landmark className="w-3.5 h-3.5" />
-            <span>Official Government Welfare & Banking Support · Direct Benefit Transfer (DBT)</span>
+            <span>{t.schemesOfficialSupport}</span>
           </div>
 
           <h2 className="text-2xl sm:text-4xl font-serif font-bold text-white tracking-tight leading-snug">
-            Government Business Schemes, Collateral-Free Loans & Subsidies
+            {t.schemesBannerTitle}
           </h2>
 
           <p className="text-xs sm:text-sm text-white/85 leading-relaxed font-normal">
@@ -262,31 +264,31 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
           <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-semibold">
             <span className="flex items-center gap-1.5 bg-black/30 px-3 py-1.5 rounded-xl border border-white/10 text-emerald-300">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>100% Collateral-Free</span>
+              <span>{t.schemesCollateralFree}</span>
             </span>
             <span className="flex items-center gap-1.5 bg-black/30 px-3 py-1.5 rounded-xl border border-white/10 text-[#E6B325]">
               <Sparkles className="w-3.5 h-3.5 text-[#E6B325]" />
-              <span>Direct Bank Account Disbursal</span>
+              <span>{t.schemesDisbursalDirect}</span>
             </span>
             <span className="flex items-center gap-1.5 bg-black/30 px-3 py-1.5 rounded-xl border border-white/10 text-blue-200">
               <ShieldCheck className="w-3.5 h-3.5 text-blue-300" />
-              <span>Zero Middleman Deductions</span>
+              <span>{t.schemesZeroBrokers}</span>
             </span>
           </div>
         </div>
       </div>
 
       {/* Global Language Selector & Audio Voice Announcement Bar */}
-      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#1E293B] p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#2D5A27] text-[#E6B325] flex items-center justify-center font-bold shrink-0">
             <Volume2 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-xs sm:text-sm text-slate-900">
-              Listen to Scheme Rules & Subsidies in ANY Language:
+            <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+              {t.listenSchemesAudio}:
             </h3>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
               Click the audio button on any scheme below to hear loans, interest rates, and subsidies spoken aloud.
             </p>
           </div>
@@ -299,7 +301,7 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
               stopAudio();
               setSelectedAudioLang(e.target.value);
             }}
-            className="px-3.5 py-2 rounded-xl border border-slate-300 bg-[#F8F5F0] text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#2D5A27] shadow-inner cursor-pointer"
+            className="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-[#F8F5F0] dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2D5A27] shadow-inner cursor-pointer"
           >
             {UNIVERSAL_AUDIO_LANGUAGES.map((lang) => (
               <option key={lang.code} value={lang.code}>
@@ -322,17 +324,17 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
 
       {/* Spoken Transcript Bar if playing */}
       {(isPlayingAudio || translatingAudio) && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between animate-fadeIn text-xs">
-          <div className="flex items-center gap-2 text-[#2D5A27] font-semibold">
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between animate-fadeIn text-xs">
+          <div className="flex items-center gap-2 text-[#2D5A27] dark:text-emerald-300 font-semibold">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-ping"></span>
             <span>
               {translatingAudio ? 'Translating scheme details into your selected voice language...' : `Speaking: "${spokenTranscript?.slice(0, 140)}..."`}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <span className="w-1 h-3 bg-[#2D5A27] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-            <span className="w-1 h-5 bg-[#2D5A27] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-            <span className="w-1 h-4 bg-[#2D5A27] rounded-full animate-bounce"></span>
+            <span className="w-1 h-3 bg-[#2D5A27] dark:bg-emerald-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+            <span className="w-1 h-5 bg-[#2D5A27] dark:bg-emerald-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+            <span className="w-1 h-4 bg-[#2D5A27] dark:bg-emerald-400 rounded-full animate-bounce"></span>
           </div>
         </div>
       )}
@@ -345,8 +347,8 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
             onClick={() => setSelectedCategory(cat.id)}
             className={`px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               selectedCategory === cat.id
-                ? 'bg-[#2D5A27] text-white shadow-md'
-                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white shadow-md'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
             }`}
           >
             {cat.label}
@@ -361,11 +363,11 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
           return (
             <div
               key={scheme.id}
-              className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-5 relative overflow-hidden group hover:border-[#2D5A27]/50"
+              className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-5 relative overflow-hidden group hover:border-[#2D5A27]/50 dark:hover:border-emerald-500/40"
             >
               {/* Top Badge */}
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#E6B325]/15 text-[#2D5A27] border border-[#E6B325]/30">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#E6B325]/15 dark:bg-amber-950/40 text-[#2D5A27] dark:text-amber-300 border border-[#E6B325]/30 dark:border-amber-700/40">
                   {scheme.badge}
                 </span>
                 <span className="text-[11px] text-slate-400 font-medium">
@@ -375,40 +377,40 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
 
               {/* Title & Tagline */}
               <div className="space-y-1.5">
-                <h3 className="font-serif font-bold text-lg text-slate-900 group-hover:text-[#2D5A27] transition-colors leading-tight">
+                <h3 className="font-serif font-bold text-lg text-slate-900 dark:text-white group-hover:text-[#2D5A27] dark:group-hover:text-emerald-400 transition-colors leading-tight">
                   {scheme.name}
                 </h3>
-                <p className="text-xs text-slate-500 line-clamp-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
                   {scheme.tagline}
                 </p>
-                <div className="text-[11px] text-[#2D5A27] font-semibold pt-0.5">
+                <div className="text-[11px] text-[#2D5A27] dark:text-emerald-400 font-semibold pt-0.5">
                   Authority: {scheme.ministry}
                 </div>
               </div>
 
               {/* Loan & Subsidy Highlights Grid */}
-              <div className="grid grid-cols-2 gap-2.5 p-3.5 rounded-2xl bg-[#F8F5F0] border border-slate-200/80 text-xs">
+              <div className="grid grid-cols-2 gap-2.5 p-3.5 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 text-xs">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Max Loan</span>
-                  <span className="text-base font-bold text-[#2D5A27]">{scheme.loanDisplay}</span>
+                  <span className="text-base font-bold text-[#2D5A27] dark:text-emerald-300">{scheme.loanDisplay}</span>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Interest Rate</span>
-                  <span className="text-xs font-bold text-emerald-700">{scheme.interestRate}</span>
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{scheme.interestRate}</span>
                 </div>
-                <div className="col-span-2 pt-1 border-t border-slate-200/60">
-                  <span className="text-[10px] uppercase font-bold text-[#C69516] block">Direct Govt Subsidy / Benefit</span>
-                  <span className="text-[11px] font-semibold text-slate-800">{scheme.subsidyGrant}</span>
+                <div className="col-span-2 pt-1 border-t border-slate-200/60 dark:border-slate-700">
+                  <span className="text-[10px] uppercase font-bold text-[#C69516] dark:text-amber-400 block">Direct Govt Subsidy / Benefit</span>
+                  <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200">{scheme.subsidyGrant}</span>
                 </div>
               </div>
 
               {/* Collateral & Tranches Info */}
-              <div className="space-y-1.5 text-[11px] text-slate-600">
-                <div className="flex items-center gap-1.5 font-medium text-emerald-800">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-1.5 font-medium text-emerald-800 dark:text-emerald-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span><strong>Collateral:</strong> {scheme.collateral}</span>
                 </div>
-                <div className="flex items-start gap-1.5 text-slate-500">
+                <div className="flex items-start gap-1.5 text-slate-500 dark:text-slate-400">
                   <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                   <span><strong>Structure:</strong> {scheme.tranches}</span>
                 </div>
@@ -419,12 +421,12 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
                 <span className="text-[10px] font-bold uppercase text-slate-400 block">Eligible Trades:</span>
                 <div className="flex flex-wrap gap-1">
                   {scheme.eligibleTrades.slice(0, 3).map((t, idx) => (
-                    <span key={idx} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px]">
+                    <span key={idx} className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px]">
                       {t}
                     </span>
                   ))}
                   {scheme.eligibleTrades.length > 3 && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px]">
+                    <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px]">
                       +{scheme.eligibleTrades.length - 3} more
                     </span>
                   )}
@@ -432,13 +434,13 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
               </div>
 
               {/* Action Buttons: Audio Listen & Apply */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                 <button
                   onClick={() => handleSpeech(scheme)}
                   className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                     isSpeakingThis 
                       ? 'bg-rose-600 text-white' 
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
                   }`}
                   title="Listen aloud in chosen language"
                 >
@@ -470,23 +472,23 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
       </div>
 
       {/* Interactive Live Scheme & Loan EMI Calculator Bar */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+      <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#E6B325]/20 text-[#2D5A27] flex items-center justify-center font-bold">
-              <Calculator className="w-6 h-6 text-[#2D5A27]" />
+            <div className="w-12 h-12 rounded-2xl bg-[#E6B325]/20 dark:bg-amber-950/40 text-[#2D5A27] dark:text-amber-300 flex items-center justify-center font-bold">
+              <Calculator className="w-6 h-6 text-[#2D5A27] dark:text-amber-300" />
             </div>
             <div>
-              <h3 className="font-serif font-bold text-lg text-slate-900">
+              <h3 className="font-serif font-bold text-lg text-slate-900 dark:text-white">
                 Automatic Scheme & EMI Calculator
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Select your business requirement to see exact monthly EMI, eligible government subsidies, and zero-collateral limits.
               </p>
             </div>
           </div>
 
-          <div className="text-xs text-slate-500 font-semibold bg-slate-100 px-3 py-1.5 rounded-xl self-start sm:self-auto">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl self-start sm:self-auto">
             100% Transparent Govt Subvention
           </div>
         </div>
@@ -495,9 +497,9 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
           
           {/* Input 1: Loan Amount */}
           <div className="space-y-2">
-            <label className="font-bold text-slate-700 flex items-center justify-between">
+            <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
               <span>Required Loan Amount:</span>
-              <span className="text-[#2D5A27] font-bold text-sm">₹{calcAmount.toLocaleString('en-IN')}</span>
+              <span className="text-[#2D5A27] dark:text-emerald-400 font-bold text-sm">₹{calcAmount.toLocaleString('en-IN')}</span>
             </label>
             <input
               type="range"
@@ -510,7 +512,7 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
                 setCalcAmount(val);
                 calculateLoan(val, calcTrade, calcYears);
               }}
-              className="w-full accent-[#2D5A27] cursor-pointer"
+              className="w-full accent-[#2D5A27] dark:accent-emerald-400 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-400">
               <span>₹50,000 (Shishu)</span>
@@ -521,7 +523,7 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
 
           {/* Input 2: Trade Category */}
           <div className="space-y-2">
-            <label className="font-bold text-slate-700">Business / Trade Category:</label>
+            <label className="font-bold text-slate-700 dark:text-slate-300">Business / Trade Category:</label>
             <select
               value={calcTrade}
               onChange={(e) => {
@@ -529,7 +531,7 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
                 setCalcTrade(val);
                 calculateLoan(calcAmount, val, calcYears);
               }}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-[#F8F5F0] text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#2D5A27]"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-[#F8F5F0] dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2D5A27]"
             >
               <option value="artisan">Artisan / Handloom / Potter / Weaver (PM Vishwakarma)</option>
               <option value="retail">Retail / Ration Store / Sports Goods (MUDRA)</option>
@@ -540,7 +542,7 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
 
           {/* Input 3: Tenure */}
           <div className="space-y-2">
-            <label className="font-bold text-slate-700">Repayment Period:</label>
+            <label className="font-bold text-slate-700 dark:text-slate-300">Repayment Period:</label>
             <div className="grid grid-cols-3 gap-2">
               {[1, 3, 5].map((yr) => (
                 <button
@@ -552,8 +554,8 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
                   }}
                   className={`py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
                     calcYears === yr 
-                      ? 'bg-[#2D5A27] text-white border-[#2D5A27]' 
-                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                      ? 'bg-[#2D5A27] dark:bg-emerald-600 text-white border-[#2D5A27] dark:border-emerald-600' 
+                      : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                   }`}
                 >
                   {yr} Year{yr > 1 ? 's' : ''}
@@ -566,22 +568,22 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
 
         {/* Calculation Summary Results */}
         {calcResult && (
-          <div className="p-5 rounded-2xl bg-[#2D5A27]/5 border border-[#2D5A27]/20 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div className="p-5 rounded-2xl bg-[#2D5A27]/5 dark:bg-emerald-950/30 border border-[#2D5A27]/20 dark:border-emerald-800/50 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Recommended Scheme</span>
-              <span className="font-bold text-slate-900 text-sm">{calcResult.recommendedScheme.name}</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block">Recommended Scheme</span>
+              <span className="font-bold text-slate-900 dark:text-white text-sm">{calcResult.recommendedScheme.name}</span>
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Subsidized Interest Rate</span>
-              <span className="font-bold text-emerald-800 text-sm">{calcResult.interestRateFormatted}</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block">Subsidized Interest Rate</span>
+              <span className="font-bold text-emerald-800 dark:text-emerald-400 text-sm">{calcResult.interestRateFormatted}</span>
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Estimated Monthly EMI</span>
-              <span className="font-bold text-[#2D5A27] text-base">₹{calcResult.monthlyEmi?.toLocaleString('en-IN')}/mo</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block">Estimated Monthly EMI</span>
+              <span className="font-bold text-[#2D5A27] dark:text-emerald-300 text-base">₹{calcResult.monthlyEmi?.toLocaleString('en-IN')}/mo</span>
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-[#C69516] block">Direct Govt Subsidy</span>
-              <span className="font-bold text-[#C69516] text-base">
+              <span className="text-[10px] uppercase font-bold text-[#C69516] dark:text-amber-400 block">Direct Govt Subsidy</span>
+              <span className="font-bold text-[#C69516] dark:text-amber-400 text-base">
                 {calcResult.estimatedSubsidy > 0 ? `₹${calcResult.estimatedSubsidy.toLocaleString('en-IN')}` : '₹15,000 Toolkit + 8% Subvention'}
               </span>
             </div>
@@ -592,60 +594,60 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
       {/* 1-Click Scheme Application Modal */}
       {isApplyModalOpen && activeApplyScheme && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-200 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
             
             <button
               onClick={() => setIsApplyModalOpen(false)}
-              className="absolute top-5 right-5 p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
+              className="absolute top-5 right-5 p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
             {applicationSuccess ? (
               <div className="text-center py-6 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto shadow-inner">
-                  <Check className="w-8 h-8 text-emerald-600 stroke-[3]" />
+                <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex items-center justify-center mx-auto shadow-inner">
+                  <Check className="w-8 h-8 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="text-xl font-serif font-bold text-slate-900">
+                  <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-white">
                     Application Pre-Approved!
                   </h3>
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
                     Your scheme application has been registered and verified under priority rural enterprise quota.
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[#F8F5F0] border border-slate-200 text-xs text-left space-y-2">
-                  <div className="flex justify-between border-b border-slate-200/80 pb-1.5">
-                    <span className="text-slate-500">Application Token:</span>
-                    <strong className="font-mono text-[#2D5A27]">{applicationSuccess.id}</strong>
+                <div className="p-4 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-left space-y-2">
+                  <div className="flex justify-between border-b border-slate-200/80 dark:border-slate-700 pb-1.5">
+                    <span className="text-slate-500 dark:text-slate-400">Application Token:</span>
+                    <strong className="font-mono text-[#2D5A27] dark:text-emerald-400">{applicationSuccess.id}</strong>
                   </div>
-                  <div className="flex justify-between border-b border-slate-200/80 pb-1.5">
-                    <span className="text-slate-500">Applicant:</span>
-                    <strong className="text-slate-900">{applicationSuccess.applicantName}</strong>
+                  <div className="flex justify-between border-b border-slate-200/80 dark:border-slate-700 pb-1.5">
+                    <span className="text-slate-500 dark:text-slate-400">Applicant:</span>
+                    <strong className="text-slate-900 dark:text-white">{applicationSuccess.applicantName}</strong>
                   </div>
-                  <div className="flex justify-between border-b border-slate-200/80 pb-1.5">
-                    <span className="text-slate-500">Scheme Name:</span>
-                    <strong className="text-slate-900">{applicationSuccess.schemeName}</strong>
+                  <div className="flex justify-between border-b border-slate-200/80 dark:border-slate-700 pb-1.5">
+                    <span className="text-slate-500 dark:text-slate-400">Scheme Name:</span>
+                    <strong className="text-slate-900 dark:text-white">{applicationSuccess.schemeName}</strong>
                   </div>
-                  <div className="flex justify-between border-b border-slate-200/80 pb-1.5">
-                    <span className="text-slate-500">Sanction Amount:</span>
-                    <strong className="text-emerald-800">₹{Number(applicationSuccess.requestedAmount).toLocaleString('en-IN')}</strong>
+                  <div className="flex justify-between border-b border-slate-200/80 dark:border-slate-700 pb-1.5">
+                    <span className="text-slate-500 dark:text-slate-400">Sanction Amount:</span>
+                    <strong className="text-emerald-800 dark:text-emerald-400">₹{Number(applicationSuccess.requestedAmount).toLocaleString('en-IN')}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Assigned Verification Kiosk:</span>
-                    <span className="text-slate-700 font-medium">{applicationSuccess.kioskLocation}</span>
+                    <span className="text-slate-500 dark:text-slate-400">Assigned Verification Kiosk:</span>
+                    <span className="text-slate-700 dark:text-slate-300 font-medium">{applicationSuccess.kioskLocation}</span>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   A verification SMS with kiosk token has been sent to {applicationSuccess.phone}. Gram AI field coordinator will assist with direct bank disbursal within 48 hours.
                 </p>
 
                 <button
                   onClick={() => setIsApplyModalOpen(false)}
-                  className="w-full py-3 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs transition-colors cursor-pointer"
+                  className="w-full py-3 rounded-xl bg-[#2D5A27] dark:bg-emerald-600 hover:bg-[#1E3D1A] dark:hover:bg-emerald-500 text-white font-semibold text-xs transition-colors cursor-pointer"
                 >
                   Done & Return to Homepage
                 </button>
@@ -653,70 +655,70 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
             ) : (
               <form onSubmit={handleSubmitApplication} className="space-y-4">
                 
-                <div className="border-b border-slate-100 pb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#C69516]">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#C69516] dark:text-amber-400">
                     Direct Bank Verification
                   </span>
-                  <h3 className="font-serif font-bold text-xl text-slate-900">
+                  <h3 className="font-serif font-bold text-xl text-slate-900 dark:text-white">
                     Apply for {activeApplyScheme.name}
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Authority: {activeApplyScheme.ministry} · {activeApplyScheme.collateral}
                   </p>
                 </div>
 
                 <div className="space-y-3 text-xs">
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Full Name (As per Aadhaar):</label>
+                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Full Name (As per Aadhaar):</label>
                     <input
                       type="text"
                       required
                       value={applicantName}
                       onChange={(e) => setApplicantName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-800 focus:outline-none focus:border-[#2D5A27]"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2D5A27]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Mobile Phone (Aadhaar & Bank Linked):</label>
+                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Mobile Phone (Aadhaar & Bank Linked):</label>
                     <input
                       type="text"
                       required
                       value={applicantPhone}
                       onChange={(e) => setApplicantPhone(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-800 focus:outline-none focus:border-[#2D5A27]"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2D5A27]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Business Trade / Craft Activity:</label>
+                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Business Trade / Craft Activity:</label>
                     <input
                       type="text"
                       required
                       value={applicantTrade}
                       onChange={(e) => setApplicantTrade(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-800 focus:outline-none focus:border-[#2D5A27]"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2D5A27]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Requested Loan Amount (INR):</label>
+                    <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Requested Loan Amount (INR):</label>
                     <input
                       type="number"
                       required
                       max={activeApplyScheme.maxLoanAmount}
                       value={desiredAmount}
                       onChange={(e) => setDesiredAmount(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-800 font-bold focus:outline-none focus:border-[#2D5A27]"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold focus:outline-none focus:border-[#2D5A27]"
                     />
                     <span className="text-[10px] text-slate-400">
                       Maximum allowable under this scheme: {activeApplyScheme.loanDisplay}
                     </span>
                   </div>
 
-                  <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-900 space-y-1">
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-900 dark:text-emerald-300 space-y-1">
                     <span className="font-bold flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                       <span>Govt Subsidies Included:</span>
                     </span>
                     <p>{activeApplyScheme.subsidyGrant}</p>
@@ -727,14 +729,14 @@ export const GovernmentSchemesSection: React.FC<{ currentLang?: string }> = () =
                   <button
                     type="button"
                     onClick={() => setIsApplyModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-100 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={applying}
-                    className="px-5 py-2.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-xs flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-xl bg-[#2D5A27] dark:bg-emerald-600 hover:bg-[#1E3D1A] dark:hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
                   >
                     {applying && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E6B325]" />}
                     <span>Submit & Get Pre-Approval</span>

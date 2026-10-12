@@ -4,633 +4,574 @@ import {
   ShieldCheck, 
   Truck, 
   Sparkles, 
-  GraduationCap, 
   BarChart3, 
   CreditCard, 
   MapPin, 
   Users, 
   CheckCircle2, 
-  TrendingUp, 
   Award,
   ChevronRight,
-  Binary,
-  Database,
-  Sigma,
-  Code2,
-  Volume2,
-  Cpu,
-  Terminal,
-  Landmark
+  Landmark,
+  Tag,
+  Percent
 } from 'lucide-react';
-import { SupportedLanguage, TRANSLATIONS } from '../i18n';
+import { useLanguage } from '../context/LanguageContext';
+import { SupportedLanguage } from '../i18n';
 import { GovernmentSchemesSection } from '../components/GovernmentSchemesSection';
 
 interface LandingPageProps {
   setActiveTab: (tab: string) => void;
-  currentLang: SupportedLanguage;
+  currentLang?: SupportedLanguage;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentLang }) => {
-  const t = TRANSLATIONS[currentLang];
+export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab }) => {
+  const { language, t } = useLanguage();
 
   return (
-    <div className="space-y-20 pb-16">
+    <div className="space-y-16 pb-16">
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-8 md:pt-14 pb-12 bg-radial from-[#E6B325]/10 via-[#F8F5F0] to-[#F8F5F0] border-b border-[#2D5A27]/10">
+      <section className="relative overflow-hidden pt-8 md:pt-14 pb-12 bg-radial from-[#E6B325]/10 via-[#F8F5F0] to-[#F8F5F0] dark:via-[#0F172A] dark:to-[#0F172A] border-b border-[#2D5A27]/10 dark:border-slate-800 transition-colors">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
             {/* Left Content */}
             <div className="lg:col-span-7 space-y-6 text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2D5A27]/10 border border-[#2D5A27]/20 text-xs font-semibold text-[#2D5A27]">
-                <Sparkles className="w-3.5 h-3.5 text-[#E6B325]" />
-                <span>Next-Gen Operating System for India's 650,000 Villages</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2D5A27]/10 dark:bg-emerald-950/50 border border-[#2D5A27]/20 dark:border-emerald-800 text-xs font-semibold text-[#2D5A27] dark:text-emerald-400">
+                <Sparkles className="w-3.5 h-3.5 text-[#E6B325] dark:text-[#FBBF24]" />
+                <span>{t.heroBadge}</span>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif font-bold text-[#2D5A27] tracking-tight leading-[1.15]">
-                Direct Rural Commerce. <br />
-                <span className="text-[#C69516] italic font-normal">Dignified Prosperity.</span>
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif font-bold text-[#2D5A27] dark:text-emerald-300 tracking-tight leading-[1.15]">
+                {t.heroTitle} <br />
+                <span className="text-[#C69516] dark:text-[#FBBF24] italic font-normal">{t.heroHighlight}</span>
               </h1>
 
-              <p className="text-base sm:text-lg text-[#2C2C2C]/80 leading-relaxed font-normal">
-                Gram AI bridges rural artisans, self-help groups, and natural farmers directly with urban conscious buyers — combining fair-trade sales, rural micro-logistics, instant UPI escrow, and Gemini-powered business intelligence.
+              <p className="text-base sm:text-lg text-[#2C2C2C]/80 dark:text-slate-300 leading-relaxed font-normal">
+                {t.heroSubtitle}
               </p>
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
                   onClick={() => setActiveTab('marketplace')}
-                  className="px-6 py-3.5 rounded-xl bg-[#2D5A27] hover:bg-[#1E3D1A] text-white font-semibold text-sm transition-all shadow-lg hover:shadow-xl flex items-center gap-2 group cursor-pointer"
+                  className="px-6 py-3.5 rounded-xl bg-[#2D5A27] dark:bg-emerald-600 hover:bg-[#1E3D1A] dark:hover:bg-emerald-500 text-white font-semibold text-sm transition-all shadow-lg hover:shadow-xl flex items-center gap-2 group cursor-pointer"
                 >
                   <span>{t.exploreMarketplace}</span>
-                  <ArrowRight className="w-4 h-4 text-[#E6B325] group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 text-[#E6B325] dark:text-amber-300 group-hover:translate-x-1 transition-transform" />
                 </button>
 
-                <a
-                  href="#govt-schemes"
-                  className="px-5 py-3.5 rounded-xl bg-[#E6B325] hover:bg-[#d8a41c] text-slate-900 font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer border border-[#C69516]"
+                <button
+                  onClick={() => setActiveTab('deals')}
+                  className="px-5 py-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer border border-amber-500"
                 >
-                  <Landmark className="w-4 h-4 text-[#1B3E17]" />
-                  <span>Govt Schemes & Loans (₹3L - ₹50L)</span>
-                </a>
+                  <Sparkles className="w-4 h-4 text-slate-950" />
+                  <span>{t.navDeals}</span>
+                </button>
 
                 <button
                   onClick={() => setActiveTab('dashboard')}
-                  className="px-5 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-[#2D5A27] border border-[#2D5A27]/30 font-semibold text-sm transition-all shadow-xs hover:border-[#2D5A27] flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-3.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-[#2D5A27] dark:text-emerald-400 border border-[#2D5A27]/30 dark:border-slate-700 font-semibold text-sm transition-all shadow-xs hover:border-[#2D5A27] flex items-center gap-2 cursor-pointer"
                 >
-                  <BarChart3 className="w-4 h-4 text-[#2D5A27]" />
-                  <span>Artisan Dashboard</span>
+                  <BarChart3 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400" />
+                  <span>{t.artisanDashboard}</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('ai-assistant')}
-                  className="px-4 py-3.5 rounded-xl bg-[#E6B325]/20 hover:bg-[#E6B325]/30 text-[#2D5A27] border border-[#E6B325]/50 font-semibold text-sm transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-3.5 rounded-xl bg-[#E6B325]/20 dark:bg-amber-950/40 hover:bg-[#E6B325]/30 dark:hover:bg-amber-900/50 text-[#2D5A27] dark:text-amber-300 border border-[#E6B325]/50 dark:border-amber-700/50 font-semibold text-sm transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <Sparkles className="w-4 h-4 text-[#2D5A27]" />
-                  <span>Voice Advisor</span>
+                  <Sparkles className="w-4 h-4 text-[#2D5A27] dark:text-amber-300" />
+                  <span>{t.voiceAdvisor}</span>
                 </button>
               </div>
 
               {/* Trust Badges */}
-              <div className="pt-4 flex flex-wrap items-center gap-6 text-xs text-slate-600 border-t border-slate-200/60">
+              <div className="pt-4 flex flex-wrap items-center gap-6 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200/60 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#2D5A27]" />
-                  <span>86%+ Proceeds to Artisans</span>
+                  <CheckCircle2 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400" />
+                  <span>{t.trustFairTrade}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#2D5A27]" />
-                  <span>Verified GI & Organic Origin</span>
+                  <CheckCircle2 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400" />
+                  <span>{t.trustGIOrigin}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#2D5A27]" />
-                  <span>India Post Rural Nodal Relay</span>
+                  <CheckCircle2 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400" />
+                  <span>{t.trustPostalRelay}</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Visual Collage */}
+            {/* Right Visual Console / Rural Ecosystem Card */}
             <div className="lg:col-span-5 relative">
               <div className="relative mx-auto max-w-md">
-                {/* Main Artisan Photo */}
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white bg-white">
-                  <img
-                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80"
-                    alt="Vedant Mishra, Lead Systems Engineer & Artisan Guild Lead"
-                    className="w-full h-80 object-cover object-top"
-                  />
-                  <div className="p-4 bg-white space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-[#2D5A27]">Vedant Mishra & Mishra Craft Guild</span>
-                      <span className="text-[11px] font-semibold bg-[#2D5A27]/10 text-[#2D5A27] px-2 py-0.5 rounded-md">
-                        Varanasi, UP
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-200/80 bg-white dark:bg-[#1E293B] p-6 space-y-5">
+                  {/* Top Bar with Live Indicator */}
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#2D5A27] text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                        🌾
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-slate-900 dark:text-white">{t.ecosystemHub}</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">{t.liveNodalNetwork}</span>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-[#2D5A27] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full">
+                      {t.activeNode}
+                    </span>
+                  </div>
+
+                  {/* 3 Pillars Quick Cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t.pillar3Title}</div>
+                      <div className="text-base font-bold text-slate-900 dark:text-white">{t.instantEscrow}</div>
+                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{t.zeroCommission}</div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t.navLogistics}</div>
+                      <div className="text-base font-bold text-slate-900 dark:text-white">{t.doorstepPickup}</div>
+                      <div className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">{t.indiaPostRelayTitle}</div>
+                    </div>
+                  </div>
+
+                  {/* Live Transaction / Scheme Badge */}
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 to-amber-50/60 dark:from-emerald-950/40 dark:to-amber-950/30 border border-emerald-100 dark:border-emerald-800/50 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-[#2D5A27] dark:text-emerald-300 flex items-center gap-1.5">
+                        <Landmark className="w-3.5 h-3.5" />
+                        {t.govtSubsidyPreApproved}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-600 text-white">
+                        PMEGP 35%
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      Founder & Lead Engineer · 150+ Artisans · Built on AOA, DBMS, MATHS, OOP · Direct UPI
-                    </p>
+                    <div className="text-xs text-slate-600 dark:text-slate-300">
+                      ₹10,00,000 sanctioned for Rural Handloom Cluster with zero collateral requirement.
+                    </div>
+                  </div>
+
+                  {/* Status List */}
+                  <div className="space-y-2 pt-1 text-xs text-slate-600 dark:text-slate-300">
+                    <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800/50">
+                      <span className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        {t.verifiedGICert}
+                      </span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">#GI-IN-2026</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1">
+                      <span className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        {t.multiLangGuide}
+                      </span>
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">4 Languages Active</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Floating Metric Card 1 */}
-                <div className="absolute -top-4 -left-6 bg-white p-3.5 rounded-xl shadow-xl border border-slate-100 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <div className="w-10 h-10 rounded-lg bg-[#2D5A27] text-[#E6B325] flex items-center justify-center font-bold">
+                <div className="absolute -top-4 -left-6 bg-white dark:bg-[#1E293B] p-3.5 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#2D5A27] text-[#E6B325] flex items-center justify-center font-bold">
                     ₹
                   </div>
                   <div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Direct Earnings</div>
-                    <div className="text-base font-bold text-slate-900">₹4,82,00,000+</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">{t.directEarnings}</div>
+                    <div className="text-base font-bold text-slate-900 dark:text-white">₹4,82,00,000+</div>
                   </div>
                 </div>
 
                 {/* Floating Metric Card 2 */}
-                <div className="absolute -bottom-4 -right-4 bg-white p-3.5 rounded-xl shadow-xl border border-slate-100 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#E6B325] text-[#2C2C2C] flex items-center justify-center font-bold">
+                <div className="absolute -bottom-4 -right-4 bg-white dark:bg-[#1E293B] p-3.5 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#E6B325] text-[#2C2C2C] flex items-center justify-center font-bold">
                     <Truck className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">On-Time Delivery</div>
-                    <div className="text-base font-bold text-emerald-800">99.2% Success</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">{t.onTimeDelivery}</div>
+                    <div className="text-base font-bold text-emerald-800 dark:text-emerald-400">99.2% Success</div>
                   </div>
                 </div>
               </div>
             </div>
 
           </div>
-        </div>
-      </section>
 
-      {/* Impact Numbers Bar */}
-      <section className="container mx-auto px-4 max-w-6xl">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-white p-6 rounded-2xl border border-[#2D5A27]/15 shadow-sm">
-          <div className="text-center md:border-r border-slate-100 p-2">
-            <div className="text-2xl sm:text-3xl font-bold font-serif text-[#2D5A27]">12,400+</div>
-            <div className="text-xs text-slate-500 mt-1 font-medium">Registered Village Artisans</div>
-          </div>
-          <div className="text-center md:border-r border-slate-100 p-2">
-            <div className="text-2xl sm:text-3xl font-bold font-serif text-[#C69516]">840+</div>
-            <div className="text-xs text-slate-500 mt-1 font-medium">Village Aggregation Hubs</div>
-          </div>
-          <div className="text-center md:border-r border-slate-100 p-2">
-            <div className="text-2xl sm:text-3xl font-bold font-serif text-[#2D5A27]">86.4%</div>
-            <div className="text-xs text-slate-500 mt-1 font-medium">Average Producer Revenue Share</div>
-          </div>
-          <div className="text-center p-2">
-            <div className="text-2xl sm:text-3xl font-bold font-serif text-[#C69516]">45,000+</div>
-            <div className="text-xs text-slate-500 mt-1 font-medium">Happy Conscious Consumers</div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= GOVERNMENT BUSINESS SCHEMES, LOANS & SUBSIDIES (AUTOMATICALLY ON FIRST PAGE) ================= */}
-      <div id="govt-schemes" className="scroll-mt-24">
-        <GovernmentSchemesSection currentLang={currentLang} />
-      </div>
-
-      {/* Problem Statement vs Gram AI Solution */}
-      <section className="container mx-auto px-4 max-w-6xl">
-        <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
-          <span className="text-xs uppercase tracking-wider font-semibold text-[#2D5A27]">
-            The Structural Challenge
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900">
-            Why Rural Producers Were Cut Off from Fair Wealth
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            India's creative and organic economy generates billions, but deep structural disconnects prevent village creators from prospering.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Traditional Middleman System */}
-          <div className="bg-rose-50/50 p-6 rounded-2xl border border-rose-200/60 space-y-4">
-            <div className="flex items-center gap-2 text-rose-800 font-semibold text-sm">
-              <span className="w-2 h-2 rounded-full bg-rose-600"></span>
-              <span>The Broken Traditional System</span>
+          {/* Automatic Live Government Business Schemes & Loans Quick Bar */}
+          <div className="mt-10 p-5 rounded-3xl bg-white/95 dark:bg-[#1E293B]/95 border-2 border-[#E6B325]/50 dark:border-[#E6B325]/30 shadow-lg backdrop-blur-md transition-colors">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                <span className="font-bold text-xs sm:text-sm text-[#2D5A27] dark:text-emerald-300 uppercase tracking-wide flex items-center gap-1.5">
+                  <Landmark className="w-4 h-4 text-[#C69516] dark:text-amber-400" />
+                  <span>{t.schemesBannerTitle}</span>
+                </span>
+                <span className="text-[10px] font-bold bg-[#E6B325]/20 dark:bg-amber-950/40 text-[#2D5A27] dark:text-amber-300 px-2 py-0.5 rounded-full border border-[#E6B325]/40 dark:border-amber-700/40 hidden md:inline-block">
+                  {t.schemesPreLoadedBadge}
+                </span>
+              </div>
+              <a
+                href="#govt-schemes"
+                className="text-xs font-bold text-[#2D5A27] dark:text-emerald-400 hover:text-[#1E3D1A] dark:hover:text-emerald-300 flex items-center gap-1 hover:underline"
+              >
+                <span>{t.exploreAllSchemes}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </a>
             </div>
-            <ul className="space-y-3 text-xs text-slate-700">
-              <li className="flex items-start gap-2.5">
-                <span className="font-bold text-rose-600">✕</span>
-                <span><strong>Heavy Middleman Exploitation:</strong> Brokers capture 50% to 70% of product retail margins, paying artisans bare subsistence wages.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <span className="font-bold text-rose-600">✕</span>
-                <span><strong>No Last-Mile Rural Logistics:</strong> Major private courier services do not pick up from remote villages, creating shipping dead-zones.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <span className="font-bold text-rose-600">✕</span>
-                <span><strong>Delayed Cash Remittances:</strong> Village producers wait 45 to 90 days for payment, forcing reliance on predatory local money lenders.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <span className="font-bold text-rose-600">✕</span>
-                <span><strong>Language & Paperwork Barriers:</strong> Complicated English-only e-commerce apps lock out millions of talented vernacular creators.</span>
-              </li>
-            </ul>
-          </div>
 
-          {/* The Gram AI Solution */}
-          <div className="bg-[#2D5A27]/5 p-6 rounded-2xl border border-[#2D5A27]/20 space-y-4">
-            <div className="flex items-center gap-2 text-[#2D5A27] font-semibold text-sm">
-              <span className="w-2 h-2 rounded-full bg-[#2D5A27]"></span>
-              <span>The Gram AI Ecosystem Solution</span>
-            </div>
-            <ul className="space-y-3 text-xs text-slate-700">
-              <li className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] shrink-0 mt-0.5" />
-                <span><strong>86%+ Direct Fair Payout:</strong> Direct consumer-to-artisan escrow removes layers of middlemen with guaranteed live price transparency.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] shrink-0 mt-0.5" />
-                <span><strong>Postal Hub Nodal Relay:</strong> We aggregate parcels at village Panchayat nodes and bridge with India Post & Gram Express EVs.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] shrink-0 mt-0.5" />
-                <span><strong>Instant UPI Settlement:</strong> Escrow automatically releases funds to the artisan SHG bank account within 24h of hub pickup.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] shrink-0 mt-0.5" />
-                <span><strong>Voice & Regional AI Copilot:</strong> Artisans speak in Hindi, Marathi, Tamil, or Telugu to generate product catalogs and calculate fair prices.</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+              <a href="#govt-schemes" className="p-3 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 hover:bg-emerald-50/70 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 transition-all text-left block group">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 block">PM Vishwakarma</span>
+                <span className="text-sm font-bold text-[#2D5A27] dark:text-emerald-300 block">₹3,00,000</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">5% Fixed · ₹15k Kit</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-0.5 group-hover:underline">
+                  <span>{t.applyNow}</span>
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              </a>
 
-      {/* 6 Core Pillars of Gram AI */}
-      <section className="container mx-auto px-4 max-w-6xl">
-        <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
-          <span className="text-xs uppercase tracking-wider font-semibold text-[#2D5A27]">
-            Integrated Technology Architecture
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900">
-            A Complete Operating System for Rural Prosperity
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            Engineered specifically for the needs, literacy, and connectivity conditions of rural enterprises.
-          </p>
-        </div>
+              <a href="#govt-schemes" className="p-3 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 hover:bg-emerald-50/70 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 transition-all text-left block group">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 block">PMMY MUDRA</span>
+                <span className="text-sm font-bold text-[#2D5A27] dark:text-emerald-300 block">₹20,00,000</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">Zero Collateral</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-0.5 group-hover:underline">
+                  <span>{t.applyNow}</span>
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              </a>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Card 1: Direct Marketplace */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#2D5A27]/40 transition-all space-y-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#2D5A27]/10 text-[#2D5A27] flex items-center justify-center group-hover:bg-[#2D5A27] group-hover:text-white transition-colors">
-              <Award className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900">Direct Producer Marketplace</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Showcase authentic GI-certified handicrafts, pure organic spices, and cold-pressed oils. Every product features transparent provenance and artisan collective bios.
-            </p>
-            <button
-              onClick={() => setActiveTab('marketplace')}
-              className="text-xs font-semibold text-[#2D5A27] flex items-center gap-1 group-hover:underline pt-1"
-            >
-              <span>Explore catalogue</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+              <a href="#govt-schemes" className="p-3 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 hover:bg-emerald-50/70 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 transition-all text-left block group">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 block">PMEGP Subsidy</span>
+                <span className="text-sm font-bold text-[#2D5A27] dark:text-emerald-300 block">₹50,00,000</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">35% Govt Grant</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-0.5 group-hover:underline">
+                  <span>{t.applyNow}</span>
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              </a>
 
-          {/* Card 2: Rural Micro-Logistics */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#2D5A27]/40 transition-all space-y-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#E6B325]/20 text-[#C69516] flex items-center justify-center group-hover:bg-[#E6B325] group-hover:text-slate-900 transition-colors">
-              <Truck className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900">Gram Express Nodal Logistics</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Consolidated pickup from village self-help groups. Partnered with 150,000+ rural post offices for reliable, low-cost pan-India door-to-door delivery.
-            </p>
-            <button
-              onClick={() => setActiveTab('logistics')}
-              className="text-xs font-semibold text-[#2D5A27] flex items-center gap-1 group-hover:underline pt-1"
-            >
-              <span>Track consignment</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+              <a href="#govt-schemes" className="p-3 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 hover:bg-emerald-50/70 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 transition-all text-left block group">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 block">Stand-Up India</span>
+                <span className="text-sm font-bold text-[#2D5A27] dark:text-emerald-300 block">₹10L - ₹1 Cr</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">Women & SC/ST</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-0.5 group-hover:underline">
+                  <span>{t.applyNow}</span>
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              </a>
 
-          {/* Card 3: Instant UPI Escrow */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#2D5A27]/40 transition-all space-y-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#2D5A27]/10 text-[#2D5A27] flex items-center justify-center group-hover:bg-[#2D5A27] group-hover:text-white transition-colors">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900">Instant NPCI UPI Escrow</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Customers pay safely with GPay, PhonePe, or Paytm. Funds are held securely and released instantly into the artisan's bank account with zero platform fee.
-            </p>
-            <div className="text-xs font-semibold text-emerald-800 pt-1">
-              Zero MDR Fee for SHGs
-            </div>
-          </div>
+              <a href="#govt-schemes" className="p-3 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 hover:bg-emerald-50/70 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 transition-all text-left block group">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 block">NABARD Credit</span>
+                <span className="text-sm font-bold text-[#2D5A27] dark:text-emerald-300 block">₹2L - ₹10L</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">4% Effective Int.</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-0.5 group-hover:underline">
+                  <span>{t.applyNow}</span>
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              </a>
 
-          {/* Card 4: AI Business Assistant */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#2D5A27]/40 transition-all space-y-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#E6B325]/20 text-[#C69516] flex items-center justify-center group-hover:bg-[#E6B325] group-hover:text-slate-900 transition-colors">
-              <Sparkles className="w-5 h-5" />
+              <a href="#govt-schemes" className="p-3 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 hover:bg-emerald-50/70 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 transition-all text-left block group">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 block">ODOP Grant</span>
+                <span className="text-sm font-bold text-[#2D5A27] dark:text-emerald-300 block">₹10,00,000</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">100% Free Grant</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-0.5 group-hover:underline">
+                  <span>{t.applyNow}</span>
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              </a>
             </div>
-            <h3 className="text-base font-bold text-slate-900">Gram Sahayak AI Assistant</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Powered by Google Gemini 3.8 Flash. Assists village entrepreneurs with voice input, calculating fair profit prices, festive sales forecasting, and government subsidies.
-            </p>
-            <button
-              onClick={() => setActiveTab('ai-assistant')}
-              className="text-xs font-semibold text-[#2D5A27] flex items-center gap-1 group-hover:underline pt-1"
-            >
-              <span>Ask business advice</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Card 5: Multilingual Learning */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#2D5A27]/40 transition-all space-y-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#2D5A27]/10 text-[#2D5A27] flex items-center justify-center group-hover:bg-[#2D5A27] group-hover:text-white transition-colors">
-              <GraduationCap className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900">Gram Vidyapeeth Learning Hub</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Audio-first and visual modules in local languages: zero-waste shock packaging, quality testing, FSSAI compliance, and PM Vishwakarma ₹3 Lakh loan guidelines.
-            </p>
-            <button
-              onClick={() => setActiveTab('learning')}
-              className="text-xs font-semibold text-[#2D5A27] flex items-center gap-1 group-hover:underline pt-1"
-            >
-              <span>Start learning</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Card 6: Real-time Analytics */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#2D5A27]/40 transition-all space-y-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#E6B325]/20 text-[#C69516] flex items-center justify-center group-hover:bg-[#E6B325] group-hover:text-slate-900 transition-colors">
-              <BarChart3 className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900">Visual Sales Analytics</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Simple, high-contrast dashboards showing daily orders, gross revenue, repeating buyers, and automated monthly tax-ready PDF settlement statements.
-            </p>
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className="text-xs font-semibold text-[#2D5A27] flex items-center gap-1 group-hover:underline pt-1"
-            >
-              <span>Open dashboard</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
           </div>
 
         </div>
       </section>
 
-      {/* CS Engineering Core Subjects (AOA, DBMS, MATHS, OOP) Section */}
+      {/* ================= DEDICATED DEALS & BEST SCHEMES SHOWCASE (Replaces video tutorials completely) ================= */}
       <section className="container mx-auto px-4 max-w-6xl">
-        <div className="bg-gradient-to-br from-[#1E3D1A] to-[#2D5A27] text-white rounded-3xl p-8 sm:p-12 shadow-xl border border-[#E6B325]/30 space-y-8">
+        <div className="bg-gradient-to-br from-[#1E3D1A] via-[#2D5A27] to-[#1B4D20] text-white rounded-3xl p-8 sm:p-12 shadow-2xl border border-[#D4A017]/30 space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
             <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#E6B325]">
-                <Cpu className="w-3.5 h-3.5" />
-                <span>Foundational Engineering Disciplines · Architect: Vedant Mishra</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-[#D4A017]">
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>{t.featuredDealsBadge}</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-serif font-bold text-white tracking-tight">
-                Engineered with Core Computer Science Principles
+                {t.featuredDealsTitle}
               </h2>
               <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
-                Gram AI connects 650,000 villages through mathematical rigor, algorithmic route optimization, ACID database transactions, and scalable object-oriented software engineering.
+                {t.featuredDealsSubtitle}
               </p>
             </div>
 
             <button
-              onClick={() => setActiveTab('engineering')}
-              className="px-5 py-3 rounded-xl bg-[#E6B325] hover:bg-[#C69516] text-[#2C2C2C] font-bold text-xs sm:text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer shrink-0 self-start md:self-center"
+              onClick={() => setActiveTab('deals')}
+              className="px-6 py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-lg flex items-center gap-2 cursor-pointer shrink-0 self-start md:self-center"
             >
-              <span>Explore All 4 CS Labs</span>
+              <span>{t.viewAllDealsBtn}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* 4 Core Subjects Grid */}
+          {/* 4 Verified Deal Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-            {/* Subject 1: AOA */}
-            <div className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-[#E6B325] flex items-center justify-center font-bold">
-                <Binary className="w-5 h-5" />
+            {/* Deal 1 */}
+            <div 
+              onClick={() => setActiveTab('deals')}
+              className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-1 rounded-lg bg-rose-500/80 text-white font-bold text-[10px]">
+                  20% OFF
+                </span>
+                <span className="text-[10px] text-amber-300 font-mono font-bold">GRAMFEST20</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-[#E6B325] tracking-wider">Subject 1</span>
-                <h3 className="text-base font-bold text-white">AOA · Algorithms</h3>
+                <h3 className="text-base font-bold text-white group-hover:text-amber-300 transition-colors">
+                  {t.catTextiles}
+                </h3>
+                <p className="text-white/80 leading-relaxed text-[11px] mt-1">
+                  Varanasi pure silk sarees & Jamdani dupattas with verified handloom authenticity.
+                </p>
               </div>
-              <p className="text-white/80 leading-relaxed text-[11px]">
-                <strong>Dijkstra Relay Routing</strong> across 154,000 postal nodes in <code>O((V+E)log V)</code>, and <strong>0/1 Knapsack DP</strong> for courier vehicle payload optimization.
-              </p>
-              <div className="text-[10px] font-mono text-emerald-300 pt-1">
-                Time: O((V+E) log V)
+              <div className="text-[10px] text-emerald-300 pt-1 flex items-center gap-1 font-semibold">
+                <span>{t.dealsBadge}</span>
+                <ChevronRight className="w-3 h-3" />
               </div>
             </div>
 
-            {/* Subject 2: DBMS */}
-            <div className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-blue-400/20 text-blue-300 flex items-center justify-center font-bold">
-                <Database className="w-5 h-5" />
+            {/* Deal 2 */}
+            <div 
+              onClick={() => setActiveTab('deals')}
+              className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-1 rounded-lg bg-amber-500/80 text-slate-950 font-bold text-[10px]">
+                  25% OFF
+                </span>
+                <span className="text-[10px] text-amber-300 font-mono font-bold">POTTERY25</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-blue-300 tracking-wider">Subject 2</span>
-                <h3 className="text-base font-bold text-white">DBMS · Databases</h3>
+                <h3 className="text-base font-bold text-white group-hover:text-amber-300 transition-colors">
+                  {t.catPottery}
+                </h3>
+                <p className="text-white/80 leading-relaxed text-[11px] mt-1">
+                  Unglazed terracotta water matkas & natural clay cookers with shockproof banana packaging.
+                </p>
               </div>
-              <p className="text-white/80 leading-relaxed text-[11px]">
-                <strong>ACID UPI Escrow</strong> with Write-Ahead Logging (WAL), <strong>3NF Relational Schemas</strong> preventing anomalies, and <strong>B+ Tree Indexing</strong> for sub-2ms queries.
-              </p>
-              <div className="text-[10px] font-mono text-blue-200 pt-1">
-                Guarantees: Strict 3NF & ACID
+              <div className="text-[10px] text-emerald-300 pt-1 flex items-center gap-1 font-semibold">
+                <span>{t.dealsBadge}</span>
+                <ChevronRight className="w-3 h-3" />
               </div>
             </div>
 
-            {/* Subject 3: MATHS */}
-            <div className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-purple-400/20 text-purple-300 flex items-center justify-center font-bold">
-                <Sigma className="w-5 h-5" />
+            {/* Deal 3 */}
+            <div 
+              onClick={() => setActiveTab('deals')}
+              className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/80 text-white font-bold text-[10px]">
+                  10% OFF
+                </span>
+                <span className="text-[10px] text-amber-300 font-mono font-bold">VILLAGE10</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-purple-300 tracking-wider">Subject 3</span>
-                <h3 className="text-base font-bold text-white">MATHS · Discrete Math</h3>
+                <h3 className="text-base font-bold text-white group-hover:text-amber-300 transition-colors">
+                  {t.catSpices} & {t.catHoneyOils}
+                </h3>
+                <p className="text-white/80 leading-relaxed text-[11px] mt-1">
+                  High-curcumin Wayanad organic turmeric & raw Sundarbans mangrove forest honey.
+                </p>
               </div>
-              <p className="text-white/80 leading-relaxed text-[11px]">
-                <strong>Graph Adjacency Matrices</strong> <code>A^k</code> for $k$-hop logistics reachability, <strong>Markov Chain Transition Matrices</strong> for parcel lifecycle states, and regression vectors.
-              </p>
-              <div className="text-[10px] font-mono text-purple-200 pt-1">
-                Formulas: G=(V,E), P_ij Markov
+              <div className="text-[10px] text-emerald-300 pt-1 flex items-center gap-1 font-semibold">
+                <span>{t.dealsBadge}</span>
+                <ChevronRight className="w-3 h-3" />
               </div>
             </div>
 
-            {/* Subject 4: OOP */}
-            <div className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-emerald-400/20 text-emerald-300 flex items-center justify-center font-bold">
-                <Code2 className="w-5 h-5" />
+            {/* Deal 4 */}
+            <div 
+              onClick={() => setActiveTab('deals')}
+              className="bg-white/10 rounded-2xl p-5 border border-white/10 space-y-3 hover:bg-white/15 transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-1 rounded-lg bg-blue-500/80 text-white font-bold text-[10px]">
+                  15% OFF
+                </span>
+                <span className="text-[10px] text-amber-300 font-mono font-bold">SPORTS15</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">Subject 4</span>
-                <h3 className="text-base font-bold text-white">OOP · System Design</h3>
+                <h3 className="text-base font-bold text-white group-hover:text-amber-300 transition-colors">
+                  {t.catSports}
+                </h3>
+                <p className="text-white/80 leading-relaxed text-[11px] mt-1">
+                  Kashmir Willow tournament cricket bats carved by generational village woodcrafters.
+                </p>
               </div>
-              <p className="text-white/80 leading-relaxed text-[11px]">
-                Strict <strong>SOLID Principles</strong>, <strong>Strategy Pattern</strong> for interchangeable payment processors, and <strong>State Pattern</strong> for consignment lifecycle state transitions.
-              </p>
-              <div className="text-[10px] font-mono text-emerald-200 pt-1">
-                Patterns: Strategy & State
+              <div className="text-[10px] text-emerald-300 pt-1 flex items-center gap-1 font-semibold">
+                <span>{t.dealsBadge}</span>
+                <ChevronRight className="w-3 h-3" />
               </div>
             </div>
           </div>
 
-          {/* Any Language Audio Highlight */}
+          {/* Quick Notice */}
           <div className="p-4 rounded-2xl bg-black/30 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5">
-              <Volume2 className="w-4 h-4 text-[#E6B325]" />
+              <ShieldCheck className="w-4 h-4 text-[#D4A017]" />
               <span>
-                Want to listen to these computer science subjects explained aloud in <strong>Hindi, Marathi, Bengali, Tamil, Telugu, Spanish, French, or English</strong>?
+                {t.fairTradeShareNotice} · <strong>{t.directEscrowNotice}</strong>
               </span>
             </div>
             <button
-              onClick={() => setActiveTab('engineering')}
-              className="text-[#E6B325] hover:underline font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
+              onClick={() => setActiveTab('deals')}
+              className="text-[#D4A017] hover:underline font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
             >
-              <span>Listen in Any Language</span>
+              <span>{t.viewAllDealsBtn}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </section>
 
-      {/* Success Stories from the Ground */}
+      {/* ================= GOVERNMENT BUSINESS SCHEMES SECTION ================= */}
+      <div id="govt-schemes" className="scroll-mt-24">
+        <GovernmentSchemesSection currentLang={language} />
+      </div>
+
+      {/* Impact Numbers Bar */}
+      <section className="container mx-auto px-4 max-w-6xl">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-[#2D5A27]/15 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="text-center md:border-r border-slate-100 dark:border-slate-800 p-2">
+            <div className="text-2xl sm:text-3xl font-bold font-serif text-[#2D5A27] dark:text-emerald-400">12,400+</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">{t.impactRegisteredArtisans}</div>
+          </div>
+          <div className="text-center md:border-r border-slate-100 dark:border-slate-800 p-2">
+            <div className="text-2xl sm:text-3xl font-bold font-serif text-[#C69516] dark:text-[#FBBF24]">840+</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">{t.impactHubs}</div>
+          </div>
+          <div className="text-center md:border-r border-slate-100 dark:border-slate-800 p-2">
+            <div className="text-2xl sm:text-3xl font-bold font-serif text-[#2D5A27] dark:text-emerald-400">86.4%</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">{t.impactRevenueShare}</div>
+          </div>
+          <div className="text-center p-2">
+            <div className="text-2xl sm:text-3xl font-bold font-serif text-[#C69516] dark:text-[#FBBF24]">45,000+</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">{t.impactHappyBuyers}</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Problem Statement vs Gram AI Solution */}
       <section className="container mx-auto px-4 max-w-6xl">
         <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
-          <span className="text-xs uppercase tracking-wider font-semibold text-[#2D5A27]">
-            Grassroots Impact
+          <span className="text-xs uppercase tracking-wider font-semibold text-[#2D5A27] dark:text-emerald-400">
+            {t.structuralChallengeBadge}
           </span>
-          <h2 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900">
-            Real Stories of Village Entrepreneurs
+          <h2 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900 dark:text-white">
+            {t.structuralChallengeTitle}
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            Meet the artisans and farmers whose livelihoods have transformed through direct digital commerce.
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+            {t.structuralChallengeSubtitle}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Story 1 */}
-          <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div className="relative h-48">
-              <img
-                src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80"
-                alt="Madhubani silk art"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-3 left-3 bg-[#2D5A27] text-white text-[11px] font-semibold px-2 py-0.5 rounded">
-                Handloom Textiles
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Traditional Middleman System */}
+          <div className="bg-rose-50/50 dark:bg-rose-950/20 p-6 rounded-3xl border border-rose-200/60 dark:border-rose-900/40 space-y-4">
+            <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300 font-semibold text-sm">
+              <span className="w-2 h-2 rounded-full bg-rose-600"></span>
+              <span>{t.brokenSystemTitle}</span>
             </div>
-            <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm">Vedant Mishra · Mishra Craft Guild, Varanasi</h4>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed italic">
-                  "Before Gram AI, middlemen took 70% of artisan profits. Now our craft guild earns ₹1,850 per piece directly with instant UPI escrow. We combined ancient handloom traditions with classical algorithms (AOA, DBMS, MATHS, OOP) to guarantee fair, dignified income for village families."
-                </p>
-              </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <span>Revenue Growth: <strong className="text-emerald-700 font-bold">+280%</strong></span>
-                <span>Active 18 Months</span>
-              </div>
-            </div>
+            <ul className="space-y-3 text-xs text-slate-700 dark:text-slate-300">
+              <li className="flex items-start gap-2.5">
+                <span className="font-bold text-rose-600">✕</span>
+                <span>{t.brokenMiddlemen}</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="font-bold text-rose-600">✕</span>
+                <span>{t.brokenLogistics}</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="font-bold text-rose-600">✕</span>
+                <span>{t.brokenPayments}</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="font-bold text-rose-600">✕</span>
+                <span>{t.brokenLanguage}</span>
+              </li>
+            </ul>
           </div>
 
-          {/* Story 2 */}
-          <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div className="relative h-48">
-              <img
-                src="https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80"
-                alt="Terracotta earthenware"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-3 left-3 bg-[#C69516] text-slate-900 text-[11px] font-semibold px-2 py-0.5 rounded">
-                Terracotta Pottery
-              </div>
+          {/* The Gram AI Solution */}
+          <div className="bg-[#2D5A27]/5 dark:bg-emerald-950/25 p-6 rounded-3xl border border-[#2D5A27]/20 dark:border-emerald-800/40 space-y-4">
+            <div className="flex items-center gap-2 text-[#2D5A27] dark:text-emerald-300 font-semibold text-sm">
+              <span className="w-2 h-2 rounded-full bg-[#2D5A27] dark:bg-emerald-400"></span>
+              <span>{t.gramSolutionTitle}</span>
             </div>
-            <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm">Rameshwar Rathore · Molela, Rajasthan</h4>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed italic">
-                  "Everyone told us earthen pots break in courier shipping. Gram Vidyapeeth taught us to pack using dried banana fibre cushions. Out of 420 pots shipped last festival, only 1 had a crack!"
-                </p>
-              </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <span>Breakage Rate: <strong className="text-emerald-700 font-bold">0.2%</strong></span>
-                <span>4th Gen Potter</span>
-              </div>
-            </div>
+            <ul className="space-y-3 text-xs text-slate-700 dark:text-slate-300">
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400 shrink-0 mt-0.5" />
+                <span>{t.solutionFairPayout}</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400 shrink-0 mt-0.5" />
+                <span>{t.solutionPostalRelay}</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400 shrink-0 mt-0.5" />
+                <span>{t.solutionInstantUpi}</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400 shrink-0 mt-0.5" />
+                <span>{t.solutionVoiceCopilot}</span>
+              </li>
+            </ul>
           </div>
-
-          {/* Story 3 */}
-          <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div className="relative h-48">
-              <img
-                src="https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=600&q=80"
-                alt="Organic turmeric harvest"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-3 left-3 bg-[#2D5A27] text-white text-[11px] font-semibold px-2 py-0.5 rounded">
-                Organic Farming
-              </div>
-            </div>
-            <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm">Vasantha Rao · Wayanad, Kerala</h4>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed italic">
-                  "Our high-curcumin turmeric used to get mixed with chemical spices in wholesale mandis. With Gram AI, urban fitness & ayurveda consumers pay for verified purity straight from our plantation."
-                </p>
-              </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <span>Direct Farmer Cut: <strong className="text-emerald-700 font-bold">84%</strong></span>
-                <span>40 Farmer Co-op</span>
-              </div>
-            </div>
-          </div>
-
         </div>
       </section>
 
       {/* Customer & Partner Testimonials */}
       <section className="container mx-auto px-4 max-w-6xl">
-        <div className="bg-white rounded-3xl p-8 sm:p-12 border border-[#2D5A27]/15 shadow-sm space-y-8">
+        <div className="bg-white dark:bg-[#1E293B] rounded-3xl p-8 sm:p-12 border border-[#2D5A27]/15 dark:border-slate-800 shadow-sm space-y-8 transition-colors">
           <div className="text-center max-w-xl mx-auto space-y-1">
-            <h3 className="text-xl sm:text-2xl font-serif font-bold text-slate-900">
-              Trusted by Urban Patrons & Rural Institutions
+            <h3 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
+              {t.testimonialsTitle}
             </h3>
-            <p className="text-xs text-slate-500">
-              Hear what conscious buyers and cooperative leaders say about Gram AI.
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t.testimonialsSubtitle}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-            <div className="p-4 rounded-xl bg-[#F8F5F0] border border-slate-200/60 space-y-3">
+            <div className="p-4 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 space-y-3">
               <div className="flex text-[#E6B325]">★★★★★</div>
-              <p className="text-slate-700 italic leading-relaxed">
+              <p className="text-slate-700 dark:text-slate-300 italic leading-relaxed">
                 "The transparency is what hooked me. I can literally scan a QR code and see Sunita Devi's workshop in Madhubani, and know 86% of my money reached her without a broker cut."
               </p>
-              <div className="font-semibold text-slate-900">
+              <div className="font-semibold text-slate-900 dark:text-white">
                 Arjun Sharma · Bengaluru
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#F8F5F0] border border-slate-200/60 space-y-3">
+            <div className="p-4 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 space-y-3">
               <div className="flex text-[#E6B325]">★★★★★</div>
-              <p className="text-slate-700 italic leading-relaxed">
-                "Gram AI’s integration with the rural post office network solves the biggest headache in rural development: last-mile transport. Our district crafts now reach Mumbai in 3 days."
+              <p className="text-slate-700 dark:text-slate-300 italic leading-relaxed">
+                "Gram AI's integration with the rural post office network solves the biggest headache in rural development: last-mile transport. Our district crafts now reach Mumbai in 3 days."
               </p>
-              <div className="font-semibold text-slate-900">
+              <div className="font-semibold text-slate-900 dark:text-white">
                 Pooja Venkatesh · Rural Dev Coordinator
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#F8F5F0] border border-slate-200/60 space-y-3">
+            <div className="p-4 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 space-y-3">
               <div className="flex text-[#E6B325]">★★★★★</div>
-              <p className="text-slate-700 italic leading-relaxed">
-                "The Gram Sahayak AI answers in simple Hindi. When we didn't know how to register for the PM Vishwakarma toolkit grant, it explained every document step by step!"
+              <p className="text-slate-700 dark:text-slate-300 italic leading-relaxed">
+                "The Gram Sahayak AI answers in simple Hindi and regional languages. When we didn't know how to register for the PM Vishwakarma toolkit grant, it explained every document step by step!"
               </p>
-              <div className="font-semibold text-slate-900">
+              <div className="font-semibold text-slate-900 dark:text-white">
                 Shankar Lal · Carpenter & Woodworker
               </div>
             </div>
@@ -644,27 +585,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab, currentL
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#E6B325]/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
           
           <h2 className="text-2xl sm:text-4xl font-serif font-bold text-white max-w-2xl mx-auto leading-tight">
-            Be Part of India's Direct Rural Commerce Revolution
+            {t.ctaTitle}
           </h2>
           <p className="text-xs sm:text-sm text-white/80 max-w-xl mx-auto leading-relaxed">
-            Whether you want to source authentic, chemical-free rural treasures or take your village enterprise pan-India, Gram AI is built for you.
+            {t.ctaSubtitle}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <button
               onClick={() => setActiveTab('marketplace')}
-              className="px-6 py-3 rounded-xl bg-[#E6B325] hover:bg-[#C69516] text-[#2C2C2C] font-bold text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              className="px-6 py-3.5 rounded-xl bg-[#E6B325] hover:bg-[#C69516] text-[#2C2C2C] font-bold text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer"
             >
-              <span>Shop Artisan Marketplace</span>
+              <span>{t.ctaShopBtn}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
             <button
               onClick={() => setActiveTab('dashboard')}
-              className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold text-sm transition-all flex items-center gap-2 cursor-pointer"
+              className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold text-sm transition-all flex items-center gap-2 cursor-pointer"
             >
               <Users className="w-4 h-4" />
-              <span>Join as Rural Enterprise</span>
+              <span>{t.ctaEnterpriseBtn}</span>
             </button>
           </div>
         </div>
