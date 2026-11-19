@@ -1,615 +1,1449 @@
-import express, { Request, Response } from 'express';
-import path from 'path';
+import 'dotenv/config';
+import express, { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI } from '@google/genai';
-import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
+import { GoogleGenAI, Type } from '@google/genai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import {
-  INITIAL_USERS,
-  INITIAL_PRODUCTS,
-  INITIAL_ORDERS,
-  INITIAL_REVIEWS,
-  INITIAL_DEALS,
-  INITIAL_MESSAGES,
-  INITIAL_TICKETS
-} from './server/seedData';
-import { Product, Order, Review, SupportTicket, DealOffer, SellerMessage } from './src/types';
+  db,
+  initDatabase,
+  hashPassword,
+  verifyPassword,
+  signAuthToken,
+  verifyAuthToken,
+  mapUserRow,
+  mapProjectRow,
+  mapSchemeRow,
+  mapMarketRow,
+  mapProductRow,
+  mapReviewRow,
+  mapOrderRow,
+  mapDealRow,
+  mapMessageRow,
+  mapTicketRow,
+  getAllProjectCategories,
+  isValidProductImageUrl,
+  AuthTokenPayload
+} from './server/db';
+import {
+  runUniversalSearch,
+  searchProjects,
+  searchProducts,
+  searchSchemes,
+  searchMarkets,
+  normalizeQuery
+} from './server/search';
 
-dotenv.config();
+initDatabase();
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: '10mb' }));
-
-// In-Memory Database Store (with seed data)
-let dbUsers = [...INITIAL_USERS];
-let dbProducts: Product[] = [...INITIAL_PRODUCTS];
-let dbOrders: Order[] = [...INITIAL_ORDERS];
-let dbReviews: Review[] = [...INITIAL_REVIEWS];
-let dbDeals: DealOffer[] = [...INITIAL_DEALS];
-let dbMessages: SellerMessage[] = [...INITIAL_MESSAGES];
-let dbTickets: SupportTicket[] = [...INITIAL_TICKETS];
-
-// Initialize Gemini SDK with User-Agent header as required
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || '',
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
+app.use(express.json({ limit: '5mb' }));
+app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
+app.use(['/api/products', '/api/search', '/api/deals', '/api/orders'], (_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
 });
 
-// Helper for simulated JWT tokens
-function generateToken(userId: string, role: string) {
-  const payload = { userId, role, timestamp: Date.now() };
-  return Buffer.from(JSON.stringify(payload)).toString('base64');
-}
-
-function verifyToken(token?: string) {
-  if (!token) return null;
-  try {
-    const raw = Buffer.from(token.replace('Bearer ', ''), 'base64').toString('utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-// ==================== AUTH ROUTES ====================
-app.post('/api/auth/login', (req: Request, res: Response) => {
-  const { email, role } = req.body;
-  let user = dbUsers.find(u => u.email === email);
-  if (!user && role) {
-    user = dbUsers.find(u => u.role === role);
-  }
-  if (!user) {
-    user = dbUsers[0]; // Fallback to first artisan
-  }
-  const token = generateToken(user.id, user.role);
-  res.json({ token, user });
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
-app.post('/api/auth/register', (req: Request, res: Response) => {
-  const { name, email, role, phone, location, state, shgName } = req.body;
-  const newUser = {
-    id: `user-${Date.now()}`,
-    name: name || 'Rural Partner',
-    email: email || `user${Date.now()}@gramai.org`,
-    role: role || 'entrepreneur',
-    phone: phone || '+91 90000 00000',
-    location: location || 'Gram Hub',
-    state: state || 'Bihar',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=250&q=80',
-    bio: 'Proud village entrepreneur on Gram AI platform.',
-    shgName: shgName || 'Village Enterprise Group',
-    joinedDate: new Date().toISOString().split('T')[0]
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many AI requests. Please wait a minute and try again.' }
+});
+
+interface AuthenticatedRequest extends Request {
+  authUser?: AuthTokenPayload & { name: string; accountStatus: string };
+}
+
+function resolveUserFromToken(token: string): (AuthTokenPayload & { name: string; accountStatus: string }) | null {
+  const payload = verifyAuthToken(token);
+  if (payload) {
+    const row = db.prepare('SELECT id, name, email, role, account_status FROM users WHERE id = ?').get(payload.userId) as any;
+    if (!row) return null;
+    return {
+      userId: row.id,
+      email: row.email,
+      role: row.role,
+      exp: payload.exp,
+      name: row.name,
+      accountStatus: row.account_status
+    };
+  }
+
+  // Backward compatibility for initial preview session tokens
+  const legacyRoleMap: Record<string, 'entrepreneur' | 'customer' | 'admin'> = {
+    demo_token_artisan: 'entrepreneur',
+    demo_token_customer: 'customer',
+    demo_token_admin: 'admin'
   };
-  dbUsers.push(newUser);
-  const token = generateToken(newUser.id, newUser.role);
-  res.status(201).json({ token, user: newUser });
-});
+  const legacyRole = legacyRoleMap[token];
+  if (legacyRole) {
+    const row = db.prepare("SELECT id, name, email, role, account_status FROM users WHERE role = ? AND account_status = 'active' LIMIT 1").get(legacyRole) as any;
+    if (!row) return null;
+    return {
+      userId: row.id,
+      email: row.email,
+      role: row.role,
+      exp: Date.now() + 86400000,
+      name: row.name,
+      accountStatus: row.account_status
+    };
+  }
+  return null;
+}
 
-app.get('/api/auth/me', (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  const decoded = verifyToken(authHeader);
-  if (decoded && decoded.userId) {
-    const user = dbUsers.find(u => u.id === decoded.userId);
-    if (user) {
-      return res.json({ user });
+function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required. Please sign in.' });
+  }
+  const user = resolveUserFromToken(token);
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid or expired session token.' });
+  }
+  if (user.accountStatus === 'suspended') {
+    return res.status(403).json({ error: 'Account is suspended. Contact platform administrator.' });
+  }
+  req.authUser = user;
+  next();
+}
+
+function optionalAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (token) {
+    const user = resolveUserFromToken(token);
+    if (user && user.accountStatus !== 'suspended') {
+      req.authUser = user;
     }
   }
-  // Default to primary artisan
-  res.json({ user: dbUsers[0] });
+  next();
+}
+
+function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.authUser) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (req.authUser.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: Administrator role required.' });
+  }
+  next();
+}
+
+function requireSellerOrAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.authUser) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (req.authUser.role !== 'entrepreneur' && req.authUser.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: Seller or Administrator role required.' });
+  }
+  next();
+}
+
+function getGeminiClient(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build'
+      }
+    }
+  });
+}
+
+// ==================== HEALTH ====================
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({
+    ok: true,
+    platform: 'GramSetu',
+    database: 'sqlite',
+    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    liveMarketApiConfigured: Boolean(process.env.DATA_GOV_API_KEY)
+  });
+});
+
+// ==================== AUTHENTICATION & USERS ====================
+app.post('/api/auth/login', authLimiter, (req: Request, res: Response) => {
+  const { email, password } = req.body || {};
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  const row = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? OR phone = ?').get(cleanEmail, String(email || '').trim()) as any;
+  if (!row) {
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  if (row.account_status === 'suspended') {
+    return res.status(403).json({ error: 'This account has been suspended by an administrator.' });
+  }
+
+  const nowIso = new Date().toISOString();
+  const valid = verifyPassword(String(password), row.password_hash);
+  if (!valid) {
+    db.prepare('UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?').run(row.id);
+    db.prepare('INSERT INTO user_login_history (user_id, timestamp, status, ip, device) VALUES (?, ?, ?, ?, ?)').run(
+      row.id,
+      nowIso,
+      'failed',
+      req.ip || '127.0.0.1',
+      req.headers['user-agent']?.slice(0, 60) || 'Web Browser'
+    );
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  db.prepare(`
+    UPDATE users
+    SET account_status = CASE WHEN account_status = 'pending' THEN 'active' ELSE account_status END,
+        last_login_at = ?,
+        last_login_type = 'recent',
+        last_active_at = ?
+    WHERE id = ?
+  `).run(nowIso, nowIso, row.id);
+
+  db.prepare('INSERT INTO user_login_history (user_id, timestamp, status, ip, device) VALUES (?, ?, ?, ?, ?)').run(
+    row.id,
+    nowIso,
+    'success',
+    req.ip || '127.0.0.1',
+    req.headers['user-agent']?.slice(0, 60) || 'Web Browser'
+  );
+
+  const updatedRow = db.prepare('SELECT * FROM users WHERE id = ?').get(row.id) as any;
+  const token = signAuthToken({ userId: updatedRow.id, email: updatedRow.email, role: updatedRow.role });
+  res.json({ user: mapUserRow(updatedRow), token });
+});
+
+app.post('/api/auth/register', authLimiter, (req: Request, res: Response) => {
+  const { name, email, password, phone, location, state, role } = req.body || {};
+  const cleanName = String(name || '').trim();
+  const cleanEmail = String(email || '').trim().toLowerCase();
+
+  if (!cleanName || !cleanEmail || !password || String(password).length < 6) {
+    return res.status(400).json({ error: 'Valid name, email, and password (min 6 chars) are required.' });
+  }
+
+  const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail);
+  if (existing) {
+    return res.status(409).json({ error: 'An account with this email already exists.' });
+  }
+
+  const assignedRole: 'entrepreneur' | 'customer' = role === 'entrepreneur' ? 'entrepreneur' : 'customer';
+  const id = `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const nowIso = new Date().toISOString();
+  const passwordHash = hashPassword(String(password));
+  const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`;
+
+  db.prepare(`
+    INSERT INTO users (id, name, email, password_hash, role, phone, location, state, avatar, bio, shg_name, joined_date, account_status, last_login_at, last_login_type, last_active_at, failed_login_attempts)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 'recent', ?, 0)
+  `).run(
+    id,
+    cleanName,
+    cleanEmail,
+    passwordHash,
+    assignedRole,
+    String(phone || '+91 90000 00000'),
+    String(location || 'India'),
+    String(state || 'India'),
+    avatar,
+    assignedRole === 'entrepreneur' ? 'Verified GramSetu rural producer & artisan.' : 'Verified GramSetu marketplace buyer.',
+    assignedRole === 'entrepreneur' ? 'Independent Producer Unit' : '',
+    nowIso.split('T')[0],
+    nowIso,
+    nowIso
+  );
+
+  db.prepare('INSERT INTO user_login_history (user_id, timestamp, status, ip, device) VALUES (?, ?, ?, ?, ?)').run(
+    id,
+    nowIso,
+    'success',
+    req.ip || '127.0.0.1',
+    req.headers['user-agent']?.slice(0, 60) || 'Web Registration'
+  );
+
+  const userRow = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+  const token = signAuthToken({ userId: id, email: cleanEmail, role: assignedRole });
+  res.status(201).json({ user: mapUserRow(userRow), token });
+});
+
+app.get('/api/auth/me', (req: AuthenticatedRequest, res: Response) => {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  const resolved = resolveUserFromToken(token);
+  if (!resolved) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(resolved.userId) as any;
+  if (!row) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  res.json({ user: mapUserRow(row) });
 });
 
 app.post('/api/auth/switch-role', (req: Request, res: Response) => {
-  const { role } = req.body;
-  const user = dbUsers.find(u => u.role === role) || dbUsers[0];
-  const token = generateToken(user.id, user.role);
-  res.json({ token, user });
+  const requestedRole = req.body?.role;
+  const targetRole: 'entrepreneur' | 'customer' | 'admin' =
+    requestedRole === 'admin' ? 'admin' : requestedRole === 'customer' ? 'customer' : 'entrepreneur';
+
+  const row = db
+    .prepare("SELECT * FROM users WHERE role = ? AND account_status = 'active' ORDER BY joined_date ASC LIMIT 1")
+    .get(targetRole) as any;
+
+  if (!row) {
+    return res.status(404).json({ error: 'No active account found for requested role.' });
+  }
+
+  const token = signAuthToken({ userId: row.id, email: row.email, role: row.role });
+  res.json({ user: mapUserRow(row), token });
 });
 
-// ==================== PRODUCTS ROUTES ====================
-app.get('/api/products', (req: Request, res: Response) => {
-  const { category, search, artisanId, condition, verifiedOnly, inStockOnly, minPrice, maxPrice, sort } = req.query;
-  let results = [...dbProducts];
+// ==================== UNIVERSAL SEARCH ====================
+app.get('/api/search', (req: Request, res: Response) => {
+  const q = String(req.query.q ?? req.query.search ?? '');
+  const type = String(req.query.type || 'all') as 'all' | 'projects' | 'products' | 'schemes' | 'markets';
+  const category = req.query.category ? String(req.query.category) : undefined;
+  const state = req.query.state ? String(req.query.state) : undefined;
+  const industry = req.query.industry ? String(req.query.industry) : undefined;
+  const businessType = req.query.businessType ? String(req.query.businessType) : undefined;
+  const location = req.query.location ? String(req.query.location) : undefined;
+  const sort = (req.query.sort ? String(req.query.sort) : 'relevance') as any;
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 24;
 
-  // Exclude paused or rejected items unless artisan is viewing own items
-  if (!artisanId) {
-    results = results.filter(p => p.moderationStatus !== 'paused');
-  }
+  const result = runUniversalSearch({
+    q,
+    type,
+    category,
+    state,
+    industry,
+    businessType,
+    location,
+    sort,
+    page,
+    limit
+  });
 
-  if (category && category !== 'all') {
-    const cat = String(category).toLowerCase();
-    results = results.filter(p => {
-      if (cat === 'clothes') {
-        return p.category === 'clothes' || p.category === 'textiles' || 
-          p.title.toLowerCase().includes('kurta') || 
-          p.title.toLowerCase().includes('saree') || 
-          p.title.toLowerCase().includes('shirt') || 
-          p.title.toLowerCase().includes('dupatta');
-      }
-      if (cat === 'sports') {
-        return p.category === 'sports' || 
-          p.title.toLowerCase().includes('cricket') || 
-          p.title.toLowerCase().includes('bat') || 
-          p.title.toLowerCase().includes('mat') || 
-          p.title.toLowerCase().includes('carrom') || 
-          p.title.toLowerCase().includes('yoga');
-      }
-      if (cat === 'ration') {
-        return p.category === 'ration' || p.category === 'spices' || p.category === 'honey_oils' ||
-          p.title.toLowerCase().includes('rice') || 
-          p.title.toLowerCase().includes('atta') || 
-          p.title.toLowerCase().includes('dal') || 
-          p.title.toLowerCase().includes('oil') || 
-          p.title.toLowerCase().includes('ghee') || 
-          p.title.toLowerCase().includes('millet');
-      }
-      return p.category === cat;
-    });
-  }
-
-  if (condition && condition !== 'all') {
-    results = results.filter(p => p.condition === condition);
-  }
-
-  if (verifiedOnly === 'true') {
-    results = results.filter(p => p.verifiedSeller && p.authenticityStatus === 'verified');
-  }
-
-  if (inStockOnly === 'true') {
-    results = results.filter(p => p.inStock && p.stock > 0);
-  }
-
-  if (minPrice) {
-    results = results.filter(p => p.price >= Number(minPrice));
-  }
-
-  if (maxPrice) {
-    results = results.filter(p => p.price <= Number(maxPrice));
-  }
-
-  if (search && typeof search === 'string') {
-    const q = search.trim().toLowerCase();
-    const queryTerms = q.split(/\s+/).filter(Boolean);
-
-    results = results.filter(p => {
-      const inTitle = p.title.toLowerCase().includes(q);
-      const inDesc = p.description.toLowerCase().includes(q);
-      const inCat = p.category.toLowerCase().includes(q);
-      const inArtisan = p.artisanName.toLowerCase().includes(q);
-      const inLoc = p.artisanLocation.toLowerCase().includes(q);
-      const inBrand = (p.brand || '').toLowerCase().includes(q);
-      const inModel = (p.model || '').toLowerCase().includes(q);
-      const inMat = Array.isArray(p.materials) && p.materials.some(m => m.toLowerCase().includes(q));
-
-      // Check if all individual query terms are contained across product metadata
-      const termsMatch = queryTerms.every(term => 
-        p.title.toLowerCase().includes(term) ||
-        p.description.toLowerCase().includes(term) ||
-        (p.brand || '').toLowerCase().includes(term) ||
-        (p.model || '').toLowerCase().includes(term) ||
-        p.category.toLowerCase().includes(term) ||
-        p.artisanName.toLowerCase().includes(term)
-      );
-
-      // Semantic keyword matching for Clothes, Sports, Ration, etc.
-      const isClothesQuery = ['clothes', 'clothing', 'wear', 'apparel', 'shirt', 'kurta', 'dress', 'fashion', 't-shirt', 'saree', 'dupatta', 'shawl', 'textile'].some(k => q.includes(k));
-      const matchClothes = isClothesQuery && (p.category === 'clothes' || p.category === 'textiles');
-
-      const isSportsQuery = ['sports', 'sport', 'fitness', 'game', 'exercise', 'cricket', 'bat', 'carrom', 'yoga', 'ball', 'gym', 'workout', 'willow'].some(k => q.includes(k));
-      const matchSports = isSportsQuery && (p.category === 'sports');
-
-      const isRationQuery = ['ration', 'grocery', 'groceries', 'food', 'grain', 'grains', 'rice', 'wheat', 'atta', 'flour', 'dal', 'pulse', 'oil', 'ghee', 'sugar', 'millet', 'turmeric', 'spice', 'honey'].some(k => q.includes(k));
-      const matchRation = isRationQuery && (p.category === 'ration' || p.category === 'spices' || p.category === 'honey_oils');
-
-      return inTitle || inBrand || inModel || inDesc || inCat || inArtisan || inLoc || inMat || termsMatch || matchClothes || matchSports || matchRation;
-    });
-  }
-
-  if (artisanId) {
-    results = results.filter(p => p.artisanId === artisanId);
-  }
-
-  // Sorting
-  if (sort === 'price_asc') {
-    results.sort((a, b) => a.price - b.price);
-  } else if (sort === 'price_desc') {
-    results.sort((a, b) => b.price - a.price);
-  } else if (sort === 'rating') {
-    results.sort((a, b) => b.rating - a.rating);
-  } else if (sort === 'newest') {
-    results.sort((a, b) => (b.id > a.id ? 1 : -1));
-  }
-
-  res.json({ products: results });
+  res.json({
+    ...result,
+    categories: getAllProjectCategories()
+  });
 });
 
-// Dynamic On-Demand Product Sourcing (User can find/create ANY product they want!)
-app.post('/api/products/discover', async (req: Request, res: Response) => {
-  const { query, categoryHint } = req.body;
-  if (!query || typeof query !== 'string' || !query.trim()) {
-    return res.status(400).json({ error: 'Search or product query required' });
+// ==================== PROJECTS & BOOKMARKS ====================
+app.get('/api/projects/categories', (_req: Request, res: Response) => {
+  res.json({ categories: getAllProjectCategories() });
+});
+
+app.get('/api/projects', (req: Request, res: Response) => {
+  const q = String(req.query.q ?? req.query.search ?? '');
+  const category = req.query.category ? String(req.query.category) : undefined;
+  const industry = req.query.industry ? String(req.query.industry) : undefined;
+  const businessType = req.query.businessType ? String(req.query.businessType) : undefined;
+  const location = req.query.location ? String(req.query.location) : undefined;
+  const sort = (req.query.sort ? String(req.query.sort) : q.trim() ? 'relevance' : 'newest') as any;
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 24));
+
+  const matched = searchProjects({
+    q,
+    category,
+    industry,
+    businessType,
+    location,
+    sort,
+    includeDrafts: req.query.includeDrafts === 'true'
+  });
+
+  const start = (page - 1) * limit;
+  const paged = matched.slice(start, start + limit);
+
+  const allProjects = db.prepare('SELECT industry, business_type, location_suitability FROM projects').all() as any[];
+  const industries = Array.from(new Set(allProjects.map(r => r.industry))).sort();
+  const businessTypes = Array.from(new Set(allProjects.map(r => r.business_type))).sort();
+
+  res.json({
+    projects: paged,
+    totalCount: matched.length,
+    page,
+    limit,
+    categories: getAllProjectCategories(),
+    industries,
+    businessTypes
+  });
+});
+
+app.get('/api/projects/:id', (req: Request, res: Response) => {
+  const param = req.params.id;
+  const row = db.prepare('SELECT * FROM projects WHERE id = ? OR slug = ?').get(param, param) as any;
+  if (!row) {
+    return res.status(404).json({ error: 'Project not found.' });
+  }
+  const project = mapProjectRow(row);
+  let relatedSchemes: any[] = [];
+  if (project.relatedSchemeIds.length > 0) {
+    const placeholders = project.relatedSchemeIds.map(() => '?').join(',');
+    const schemeRows = db
+      .prepare(`SELECT * FROM government_schemes WHERE id IN (${placeholders})`)
+      .all(...project.relatedSchemeIds) as any[];
+    relatedSchemes = schemeRows.map(mapSchemeRow);
+  }
+  res.json({ project, relatedSchemes });
+});
+
+app.get('/api/bookmarks', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  const rows = db
+    .prepare(`
+      SELECT p.* FROM projects p
+      INNER JOIN bookmarks b ON b.project_id = p.id
+      WHERE b.user_id = ?
+      ORDER BY b.created_at DESC
+    `)
+    .all(req.authUser!.userId) as any[];
+  const projects = rows.map(mapProjectRow);
+  res.json({
+    bookmarks: projects.map(p => p.id),
+    projects
+  });
+});
+
+app.post('/api/bookmarks', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  const projectId = String(req.body?.projectId || '').trim();
+  if (!projectId) {
+    return res.status(400).json({ error: 'projectId is required.' });
+  }
+  const exists = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId);
+  if (!exists) {
+    return res.status(404).json({ error: 'Project not found.' });
+  }
+  db.prepare('INSERT OR IGNORE INTO bookmarks (user_id, project_id, created_at) VALUES (?, ?, ?)').run(
+    req.authUser!.userId,
+    projectId,
+    new Date().toISOString()
+  );
+  const rows = db.prepare('SELECT project_id FROM bookmarks WHERE user_id = ?').all(req.authUser!.userId) as any[];
+  res.status(201).json({ success: true, bookmarks: rows.map(r => r.project_id) });
+});
+
+app.delete('/api/bookmarks/:projectId', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  db.prepare('DELETE FROM bookmarks WHERE user_id = ? AND project_id = ?').run(
+    req.authUser!.userId,
+    req.params.projectId
+  );
+  const rows = db.prepare('SELECT project_id FROM bookmarks WHERE user_id = ?').all(req.authUser!.userId) as any[];
+  res.json({ success: true, bookmarks: rows.map(r => r.project_id) });
+});
+
+// ==================== GOVERNMENT SCHEMES ====================
+app.get('/api/schemes', (req: Request, res: Response) => {
+  const q = String(req.query.q ?? req.query.search ?? '');
+  const category = req.query.category ? String(req.query.category) : undefined;
+  const state = req.query.state ? String(req.query.state) : undefined;
+  const schemeType = req.query.schemeType ? String(req.query.schemeType) : undefined;
+  const eligibility = req.query.eligibility ? String(req.query.eligibility) : undefined;
+  const status = req.query.status ? String(req.query.status) : undefined;
+
+  const matched = searchSchemes({ q, category, state, schemeType, eligibility, status });
+  const allRows = db.prepare('SELECT state, scheme_type, status, category FROM government_schemes').all() as any[];
+
+  res.json({
+    schemes: matched,
+    totalCount: matched.length,
+    states: Array.from(new Set(allRows.map(r => r.state))).sort(),
+    schemeTypes: Array.from(new Set(allRows.map(r => r.scheme_type))).sort()
+  });
+});
+
+app.get('/api/schemes/:id', (req: Request, res: Response) => {
+  const row = db.prepare('SELECT * FROM government_schemes WHERE id = ?').get(req.params.id) as any;
+  if (!row) {
+    return res.status(404).json({ error: 'Government scheme not found.' });
+  }
+  res.json({ scheme: mapSchemeRow(row) });
+});
+
+app.post('/api/schemes/apply', (req: Request, res: Response) => {
+  const { applicantName, phone, schemeId, trade, requestedAmount, location } = req.body || {};
+  const schemeRow = db.prepare('SELECT * FROM government_schemes WHERE id = ?').get(String(schemeId || '')) as any;
+  if (!schemeRow) {
+    return res.status(404).json({ error: 'Selected government scheme not found.' });
+  }
+  if (schemeRow.status === 'expired') {
+    return res.status(400).json({ error: 'This scheme window has expired. Please check active schemes or the official portal.' });
   }
 
-  const cleanQuery = query.trim();
+  const appId = `APP-${Date.now().toString().slice(-6)}`;
+  const submittedAt = new Date().toISOString();
+  const kioskLoc = String(location || 'District Nodal Facilitation Desk');
 
-  // 1. Check if we already have an exact or close match in existing dbProducts
-  const existing = dbProducts.find(p =>
-    p.title.toLowerCase().includes(cleanQuery.toLowerCase()) ||
-    p.description.toLowerCase().includes(cleanQuery.toLowerCase())
+  db.prepare(`
+    INSERT INTO scheme_applications (id, applicant_name, phone, scheme_id, scheme_name, ministry, trade, requested_amount, status, kiosk_location, submitted_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    appId,
+    String(applicantName || 'Applicant'),
+    String(phone || '+91 90000 00000'),
+    schemeRow.id,
+    schemeRow.name,
+    schemeRow.ministry,
+    String(trade || 'Rural Enterprise'),
+    String(requestedAmount || schemeRow.max_loan_amount),
+    'REGISTERED_INQUIRY',
+    kioskLoc,
+    submittedAt
   );
 
-  // If found, return existing with isNew: false
-  if (existing) {
-    return res.json({ product: existing, isNew: false, message: 'Found in current inventory' });
+  res.status(201).json({
+    success: true,
+    application: {
+      id: appId,
+      applicantName: String(applicantName || 'Applicant'),
+      phone: String(phone || '+91 90000 00000'),
+      schemeId: schemeRow.id,
+      schemeName: schemeRow.name,
+      ministry: schemeRow.ministry,
+      trade: String(trade || 'Rural Enterprise'),
+      requestedAmount: String(requestedAmount || schemeRow.max_loan_amount),
+      status: 'REGISTERED_INQUIRY',
+      kioskLocation: kioskLoc,
+      officialUrl: schemeRow.official_url,
+      submittedAt
+    },
+    message: `Inquiry reference ${appId} saved. Final official application must be completed on ${schemeRow.official_url || 'the official government portal'}.`
+  });
+});
+
+app.post('/api/schemes/calculate', (req: Request, res: Response) => {
+  const amount = Math.max(10000, Number(req.body?.amount) || 200000);
+  const category = String(req.body?.category || 'artisan');
+  const tenureYears = Math.min(15, Math.max(1, Number(req.body?.tenureYears) || 3));
+
+  let schemeId = 'pm-vishwakarma';
+  let baseRate = 5.0;
+  let subsidyPct = 0;
+
+  if (category === 'manufacturing' || amount > 1000000) {
+    schemeId = 'pmegp-subsidy';
+    baseRate = 9.0;
+    subsidyPct = 35;
+  } else if (category === 'women') {
+    schemeId = 'stand-up-india';
+    baseRate = 8.2;
+    subsidyPct = 0;
+  } else if (category === 'retail' || amount > 300000) {
+    schemeId = 'pmmy-mudra';
+    baseRate = 8.5;
+    subsidyPct = 0;
   }
 
-  // 2. Not in catalog yet -> Generate full authentic product using Gemini 3.8 Flash and persist in backend!
-  try {
-    const prompt = `A user wants to find or source this product on the Gram AI commerce platform: "${cleanQuery}".
-Generate a complete, authentic e-commerce product listing for this item crafted or produced by a verified Indian artisan, farmer, small manufacturer, or Self-Help Group (SHG).
-It can be in categories like Clothes, Sports, Ration/Groceries, Handicrafts, Spices, Pottery, or Daily Essentials.
+  const schemeRow = db.prepare('SELECT * FROM government_schemes WHERE id = ?').get(schemeId) as any;
+  const fallbackRow = schemeRow || (db.prepare('SELECT * FROM government_schemes LIMIT 1').get() as any);
+  const scheme = mapSchemeRow(fallbackRow);
 
-Return valid JSON with these exact fields:
-- "title": Compelling authentic title celebrating provenance (e.g. "Pure Kashmiri Mongra Saffron 1g", "Grade-1 Kashmir Willow Cricket Bat", "Stone-Ground MP Sharbati Wheat Atta 5kg", "Hand-Tailored Khadi Cotton Kurta")
-- "category": choose strictly one of ["clothes", "sports", "ration", "textiles", "spices", "pottery", "honey_oils", "bamboo_wood", "handicrafts"]
-- "price": realistic fair price in Indian Rupees (number between 250 and 3800)
-- "originalPrice": slightly higher retail price (number)
-- "stock": realistic available quantity (e.g. 15 to 50)
-- "unit": unit of sale (e.g. "piece", "500g pouch", "1kg pack", "5kg bag", "pair", "bottle", "set")
-- "rating": number (between 4.7 and 5.0)
-- "reviewsCount": number of reviews (between 10 and 85)
-- "artisanName": Name of artisan / producer + Co-op (e.g. "Bashir Ahmad Willow Guild", "Chambal Kisan Farmers Collective", "Vedant Mishra Craft Guild")
-- "artisanLocation": Village/Town + District + State (e.g. "Bijbehara, Anantnag, Kashmir" or "Varanasi, Uttar Pradesh" or "Sehore, Madhya Pradesh")
-- "description": 2-3 sentences explaining authentic production, zero chemical adulteration, and key functional specifications.
-- "artisanStory": 1-2 sentences on how purchasing this product directly supports the producer with 86%+ fair payment.
-- "materials": array of 3-4 natural materials/ingredients (e.g. ["Selected Willow Wood", "Singapore Cane", "100% Cotton", "Stone-ground Wheat"])
-- "fairTradePercent": integer between 84 and 89 (percentage directly credited to producer)`;
+  const subsidyAmt = subsidyPct > 0 ? Math.round((amount * subsidyPct) / 100) : 0;
+  const effectivePrincipal = Math.max(0, amount - subsidyAmt);
+  const monthlyRate = baseRate / 12 / 100;
+  const totalMonths = tenureYears * 12;
 
-    const geminiRes = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: 'You are an expert commerce curator for Indian artisanal, athletic, textile, and agricultural products.',
-        responseMimeType: 'application/json'
-      }
-    });
+  const emi =
+    monthlyRate === 0
+      ? effectivePrincipal / totalMonths
+      : (effectivePrincipal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) /
+        (Math.pow(1 + monthlyRate, totalMonths) - 1);
 
-    const parsed = JSON.parse(geminiRes.text || '{}');
+  const marketRate = 14.0;
+  const marketMonthlyRate = marketRate / 12 / 100;
+  const marketEmi =
+    (amount * marketMonthlyRate * Math.pow(1 + marketMonthlyRate, totalMonths)) /
+    (Math.pow(1 + marketMonthlyRate, totalMonths) - 1);
 
-    // Assign appropriate high-res image based on category and title keywords
-    let imageUrl = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80';
-    const cat = parsed.category || categoryHint || 'clothes';
-    const lower = (parsed.title + ' ' + cleanQuery).toLowerCase();
+  res.json({
+    requestedAmount: amount,
+    tenureYears,
+    recommendedScheme: scheme,
+    estimatedSubsidy: subsidyAmt,
+    effectiveLoanPrincipal: effectivePrincipal,
+    monthlyEmi: Math.round(emi),
+    interestRateFormatted: `${baseRate}% p.a. (indicative)`,
+    savingsComparedToInformalLoans: Math.max(0, Math.round((marketEmi - emi) * totalMonths))
+  });
+});
 
-    if (cat === 'sports' || lower.includes('cricket') || lower.includes('bat') || lower.includes('carrom') || lower.includes('yoga') || lower.includes('ball') || lower.includes('fitness') || lower.includes('sport')) {
-      if (lower.includes('cricket') || lower.includes('bat')) {
-        imageUrl = 'https://images.unsplash.com/photo-1531415074868-036b10554f03?auto=format&fit=crop&w=800&q=80';
-      } else if (lower.includes('yoga') || lower.includes('mat')) {
-        imageUrl = 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=800&q=80';
-      } else if (lower.includes('carrom')) {
-        imageUrl = 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80';
+// ==================== MARKET PRICES & COMMODITIES ====================
+app.get('/api/markets', async (req: Request, res: Response) => {
+  const q = String(req.query.q ?? req.query.search ?? '');
+  const category = req.query.category ? String(req.query.category) : undefined;
+  const state = req.query.state ? String(req.query.state) : undefined;
+  const sort = req.query.sort ? (String(req.query.sort) as any) : undefined;
+  const liveApiKey = process.env.DATA_GOV_API_KEY;
+  let sourceMode: 'live_api' | 'reference' = 'reference';
+  let liveNotice: string | null = null;
+
+  // Optional live Agmarknet sync when DATA_GOV_API_KEY is explicitly configured
+  if (liveApiKey && req.query.live === 'true') {
+    try {
+      const apiUrl = new URL('https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070');
+      apiUrl.searchParams.set('api-key', liveApiKey);
+      apiUrl.searchParams.set('format', 'json');
+      apiUrl.searchParams.set('limit', '20');
+      if (state && state !== 'all') apiUrl.searchParams.set('filters[state]', state);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const apiRes = await fetch(apiUrl.toString(), { signal: controller.signal });
+      clearTimeout(timeout);
+      if (apiRes.ok) {
+        const apiData = (await apiRes.json()) as any;
+        if (Array.isArray(apiData.records) && apiData.records.length > 0) {
+          sourceMode = 'live_api';
+          const upsert = db.prepare(`
+            INSERT OR REPLACE INTO market_prices (
+              id, commodity_name, variety, category, market_name, district, state,
+              min_price, max_price, modal_price, unit, previous_price, demand_level,
+              supply_level, price_date, data_source, source_url, is_live_api, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+          `);
+          const nowIso = new Date().toISOString();
+          const tx = db.transaction(() => {
+            for (const rec of apiData.records) {
+              const id = `agm-${String(rec.commodity || '').toLowerCase().replace(/[^a-z0-9]/g, '-')}-${String(rec.market || '').toLowerCase().replace(/[^a-z0-9]/g, '-')}`.slice(0, 60);
+              upsert.run(
+                id,
+                rec.commodity || 'Commodity',
+                rec.variety || 'Standard',
+                'Agricultural Commodities',
+                rec.market || 'Mandi',
+                rec.district || '',
+                rec.state || 'India',
+                Number(rec.min_price) || 0,
+                Number(rec.max_price) || 0,
+                Number(rec.modal_price) || 0,
+                'INR / Quintal',
+                null,
+                'Reported via Agmarknet',
+                'Reported via Agmarknet',
+                rec.arrival_date || nowIso.split('T')[0],
+                'Agmarknet Live API (data.gov.in)',
+                'https://agmarknet.gov.in/',
+                nowIso
+              );
+            }
+          });
+          tx();
+        }
       } else {
-        imageUrl = 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80';
+        liveNotice = 'Live market feed returned an upstream error; showing verified reference mandi prices.';
       }
-    } else if (cat === 'ration' || lower.includes('rice') || lower.includes('atta') || lower.includes('dal') || lower.includes('flour') || lower.includes('grain') || lower.includes('millet') || lower.includes('ghee') || lower.includes('ration') || lower.includes('grocery')) {
-      if (lower.includes('atta') || lower.includes('flour') || lower.includes('wheat') || lower.includes('dal')) {
-        imageUrl = 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80';
-      } else if (lower.includes('rice') || lower.includes('basmati')) {
-        imageUrl = 'https://images.unsplash.com/photo-1514733670139-4d87a1941d55?auto=format&fit=crop&w=800&q=80';
-      } else if (lower.includes('ghee') || lower.includes('oil')) {
-        imageUrl = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
-      } else {
-        imageUrl = 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80';
+    } catch {
+      liveNotice = 'Could not reach live Agmarknet feed; showing verified reference mandi prices.';
+    }
+  }
+
+  const matched = searchMarkets({ q, category, state, sort });
+  const allRows = db.prepare('SELECT category, state FROM market_prices').all() as any[];
+
+  res.json({
+    markets: matched,
+    totalCount: matched.length,
+    categories: Array.from(new Set(allRows.map(r => r.category))).sort(),
+    states: Array.from(new Set(allRows.map(r => r.state))).sort(),
+    liveApiConfigured: Boolean(liveApiKey),
+    sourceMode,
+    liveNotice,
+    lastUpdated: new Date().toISOString()
+  });
+});
+
+// ==================== PRODUCTS MARKETPLACE ====================
+function validateAndCheckProductImages(
+  excludeId: string | null,
+  rawPrimary: string,
+  rawList: string[]
+): { ok: true; primaryImage: string; dedupedImages: string[] } | { ok: false; status: number; error: string } {
+  const candidates = [rawPrimary, ...rawList]
+    .map(u => String(u || '').trim())
+    .filter(Boolean);
+
+  for (const url of candidates) {
+    if (!isValidProductImageUrl(url)) {
+      return {
+        ok: false,
+        status: 400,
+        error: `Invalid or generic product image URL rejected ("${url.slice(0, 80)}"). Use a direct product photo URL, uploaded image, or leave empty for Image Not Available.`
+      };
+    }
+  }
+
+  const dedupedImages = Array.from(new Set(candidates));
+  const primaryImage = dedupedImages[0] || '';
+
+  if (dedupedImages.length > 0) {
+    const otherRows = excludeId
+      ? (db.prepare('SELECT id, sku, title, image_url, images_json FROM products WHERE id != ?').all(excludeId) as any[])
+      : (db.prepare('SELECT id, sku, title, image_url, images_json FROM products').all() as any[]);
+
+    for (const other of otherRows) {
+      let otherImgs: string[] = [];
+      try {
+        otherImgs = JSON.parse(other.images_json || '[]');
+      } catch {
+        otherImgs = [];
       }
-    } else if (cat === 'clothes' || cat === 'textiles' || lower.includes('shirt') || lower.includes('kurta') || lower.includes('saree') || lower.includes('dupatta') || lower.includes('dress') || lower.includes('cloth') || lower.includes('jacket') || lower.includes('cotton') || lower.includes('silk')) {
-      if (lower.includes('kurta') || lower.includes('shirt') || lower.includes('trouser')) {
-        imageUrl = 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=80';
-      } else if (lower.includes('saree') || lower.includes('kalamkari')) {
-        imageUrl = 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=800&q=80';
-      } else {
-        imageUrl = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80';
-      }
-    } else if (cat === 'spices' || lower.includes('saffron') || lower.includes('tea') || lower.includes('coffee') || lower.includes('pepper') || lower.includes('spice')) {
-      if (lower.includes('saffron')) {
-        imageUrl = 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80';
-      } else if (lower.includes('coffee')) {
-        imageUrl = 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=800&q=80';
-      } else {
-        imageUrl = 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=800&q=80';
-      }
-    } else if (cat === 'pottery' || lower.includes('clay') || lower.includes('pot') || lower.includes('handi') || lower.includes('ceramic') || lower.includes('vase')) {
-      if (lower.includes('blue') || lower.includes('vase') || lower.includes('ceramic')) {
-        imageUrl = 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=800&q=80';
-      } else {
-        imageUrl = 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80';
-      }
-    } else if (cat === 'honey_oils' || lower.includes('honey') || lower.includes('oil')) {
-      if (lower.includes('honey')) {
-        imageUrl = 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=800&q=80';
-      } else {
-        imageUrl = 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=800&q=80';
-      }
-    } else if (cat === 'bamboo_wood' || cat === 'handicrafts' || lower.includes('bamboo') || lower.includes('wood') || lower.includes('leather') || lower.includes('chappal') || lower.includes('metal') || lower.includes('brass')) {
-      if (lower.includes('chappal') || lower.includes('sandal') || lower.includes('leather')) {
-        imageUrl = 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=800&q=80';
-      } else if (lower.includes('brass') || lower.includes('metal') || lower.includes('bronze')) {
-        imageUrl = 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80';
-      } else {
-        imageUrl = 'https://images.unsplash.com/photo-1595079672139-5470805087e2?auto=format&fit=crop&w=800&q=80';
+      const otherSet = new Set(
+        [other.image_url, ...(Array.isArray(otherImgs) ? otherImgs : [])]
+          .filter((u): u is string => typeof u === 'string')
+          .map(u => u.trim())
+          .filter(Boolean)
+      );
+      const conflict = dedupedImages.find(u => otherSet.has(u));
+      if (conflict) {
+        return {
+          ok: false,
+          status: 409,
+          error: `Image mismatch prevention: This image is already assigned to "${other.title}" (${other.sku || other.id}). Every product must have its own unique photo.`
+        };
       }
     }
-
-    const newProduct: Product = {
-      id: `prod-ai-${Date.now()}`,
-      artisanId: `artisan-${Date.now()}`,
-      artisanName: parsed.artisanName || 'Verified Village Producer Collective',
-      artisanLocation: parsed.artisanLocation || 'Rural Production Cluster, India',
-      title: parsed.title || cleanQuery,
-      category: parsed.category || categoryHint || 'clothes',
-      price: Number(parsed.price) || 850,
-      originalPrice: Number(parsed.originalPrice) || Math.round((Number(parsed.price) || 850) * 1.25),
-      stock: Number(parsed.stock) || 25,
-      unit: parsed.unit || 'piece',
-      rating: Number(parsed.rating) || 4.9,
-      reviewsCount: Number(parsed.reviewsCount) || 24,
-      imageUrl,
-      description: parsed.description || `Authentic ${cleanQuery} sourced directly from verified rural producers and local artisans.`,
-      artisanStory: parsed.artisanStory || 'Directly produced with 86%+ fair payment transferred straight to the local artisan bank account.',
-      materials: Array.isArray(parsed.materials) ? parsed.materials : ['Natural Material', 'Traditional Craft'],
-      inStock: true,
-      featured: true,
-      fairTradePercent: Number(parsed.fairTradePercent) || 86
-    };
-
-    // Prepend to backend database so it becomes permanently searchable and purchaseable!
-    dbProducts.unshift(newProduct);
-
-    res.status(201).json({
-      product: newProduct,
-      isNew: true,
-      message: `Successfully sourced and added "${newProduct.title}" to Gram AI catalog!`
-    });
-  } catch (err: any) {
-    console.error('Discover product error:', err);
-    // Fallback product creation
-    const fallbackProduct: Product = {
-      id: `prod-ai-${Date.now()}`,
-      artisanId: `artisan-${Date.now()}`,
-      artisanName: 'Gram Artisan & Producer Collective',
-      artisanLocation: 'Rural Heritage Cluster, India',
-      title: cleanQuery.charAt(0).toUpperCase() + cleanQuery.slice(1),
-      category: (categoryHint as any) || 'clothes',
-      price: 850,
-      originalPrice: 1100,
-      stock: 20,
-      unit: 'piece',
-      rating: 4.9,
-      reviewsCount: 19,
-      imageUrl: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=80',
-      description: `Authentic ${cleanQuery} sourced directly from verified village producers with zero middleman markups.`,
-      artisanStory: 'Crafted by rural self-help group members with 86% of the purchase price flowing directly into their village bank accounts.',
-      materials: ['Handmade', 'Natural Ingredients', 'Ethical Origin'],
-      inStock: true,
-      featured: true,
-      fairTradePercent: 86
-    };
-    dbProducts.unshift(fallbackProduct);
-    res.status(201).json({ product: fallbackProduct, isNew: true });
   }
+
+  return { ok: true, primaryImage, dedupedImages };
+}
+
+app.get('/api/products', (req: Request, res: Response) => {
+  const q = String(req.query.q ?? req.query.search ?? '');
+  const category = req.query.category ? String(req.query.category) : undefined;
+  const condition = req.query.condition ? String(req.query.condition) : undefined;
+  const verifiedOnly = req.query.verifiedOnly === 'true';
+  const inStockOnly = req.query.inStockOnly === 'true';
+  const artisanId = req.query.artisanId ? String(req.query.artisanId) : undefined;
+  const sort = (req.query.sort ? String(req.query.sort) : q.trim() ? 'relevance' : 'newest') as any;
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+
+  let products = searchProducts({ q, category, condition, verifiedOnly, inStockOnly, sort });
+  if (artisanId) {
+    products = products.filter(p => p.artisanId === artisanId);
+  }
+
+  const total = products.length;
+  const start = (page - 1) * limit;
+  const paged = products.slice(start, start + limit);
+
+  res.json({
+    products: paged,
+    total,
+    totalCount: total,
+    page,
+    limit
+  });
+});
+
+app.post('/api/products/verify-image', async (req: Request, res: Response) => {
+  const imageUrl = String(req.body?.imageUrl || '').trim();
+  const excludeProductId = req.body?.productId ? String(req.body.productId) : null;
+
+  if (!imageUrl) {
+    return res.json({
+      valid: false,
+      reason: 'No image URL provided. Listing will display the "Image Not Available" placeholder cleanly.'
+    });
+  }
+
+  if (!isValidProductImageUrl(imageUrl)) {
+    return res.status(400).json({
+      valid: false,
+      reason: 'Rejected: URL must be a valid https/http product image, uploaded image, or /images/products/ asset (generic workshop photos are blocked).'
+    });
+  }
+
+  const dupCheck = validateAndCheckProductImages(excludeProductId, imageUrl, [imageUrl]);
+  if (!dupCheck.ok) {
+    return res.status(dupCheck.status).json({
+      valid: false,
+      duplicate: dupCheck.status === 409,
+      reason: dupCheck.error
+    });
+  }
+
+  if (imageUrl.startsWith('data:image/')) {
+    return res.json({ valid: true, sourceType: 'uploaded_data_url', reason: 'Uploaded image validated and unique to this product.' });
+  }
+
+  if (imageUrl.startsWith('/images/')) {
+    const safeRel = imageUrl.replace(/^\/+/, '');
+    const fullPath = path.join(process.cwd(), 'public', safeRel);
+    if (fs.existsSync(fullPath)) {
+      return res.json({ valid: true, sourceType: 'verified_local_asset', reason: 'Verified local product asset found and uniquely mapped.' });
+    }
+    return res.status(404).json({ valid: false, reason: `Local product image file not found at ${imageUrl}.` });
+  }
+
+  // Remote HTTP/HTTPS verification
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    let response = await fetch(imageUrl, { method: 'HEAD', signal: controller.signal, redirect: 'follow' });
+    if (!response.ok || response.status === 405) {
+      response = await fetch(imageUrl, { method: 'GET', signal: controller.signal, redirect: 'follow' });
+    }
+    clearTimeout(timer);
+
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    if (!response.ok) {
+      return res.status(400).json({
+        valid: false,
+        reason: `Remote image URL returned HTTP ${response.status}. Placeholder "Image Not Available" should be used instead.`
+      });
+    }
+    if (!contentType.startsWith('image/')) {
+      return res.status(400).json({
+        valid: false,
+        reason: `URL did not return an image (Content-Type: ${contentType || 'unknown'}).`
+      });
+    }
+    return res.json({
+      valid: true,
+      sourceType: 'remote_verified',
+      contentType,
+      reason: 'Remote product image verified reachable and uniquely assigned.'
+    });
+  } catch {
+    return res.status(400).json({
+      valid: false,
+      reason: 'Could not verify remote image URL within timeout. Leave blank to display "Image Not Available".'
+    });
+  }
+});
+
+// Verify real DB records only — never fabricate non-existent listings
+app.post('/api/products/discover', (req: Request, res: Response) => {
+  const query = normalizeQuery(String(req.body?.query || ''));
+  if (!query) {
+    return res.status(400).json({ error: 'Search query required.', products: [], found: false });
+  }
+  const products = searchProducts({ q: query, sort: 'relevance' });
+  res.json({
+    query,
+    products,
+    found: products.length > 0,
+    message:
+      products.length > 0
+        ? `Found ${products.length} verified database listing(s) matching "${query}".`
+        : `No matching products found in database for "${query}".`
+  });
+});
+
+app.get('/api/products/:id/documents', (req: Request, res: Response) => {
+  const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id) as any;
+  if (!row) {
+    return res.status(404).json({ error: 'Product not found.' });
+  }
+  const product = mapProductRow(row);
+  res.json({
+    productId: product.id,
+    sku: product.sku,
+    title: product.title,
+    documents: product.documents || [],
+    specifications: product.specifications || {}
+  });
 });
 
 app.get('/api/products/:id', (req: Request, res: Response) => {
-  const product = dbProducts.find(p => p.id === req.params.id);
-  if (!product) {
-    return res.status(404).json({ error: 'Product not found' });
+  const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id) as any;
+  if (!row) {
+    return res.status(404).json({ error: 'Product not found.' });
   }
-  const reviews = dbReviews.filter(r => r.productId === req.params.id);
-  res.json({ product, reviews });
+  const reviews = db
+    .prepare('SELECT * FROM product_reviews WHERE product_id = ? ORDER BY date DESC')
+    .all(row.id) as any[];
+  res.json({
+    product: mapProductRow(row),
+    reviews: reviews.map(mapReviewRow)
+  });
 });
 
-app.post('/api/products', (req: Request, res: Response) => {
-  const body = req.body;
-  const newProduct: Product = {
-    id: `prod-${Date.now()}`,
-    artisanId: body.artisanId || 'user-artisan-1',
-    artisanName: body.artisanName || 'Sunita Devi (Mithila Shakti SHG)',
-    artisanLocation: body.artisanLocation || 'Madhubani, Bihar',
-    title: body.title || 'Handcrafted Rural Product',
-    category: body.category || 'textiles',
-    price: Number(body.price) || 500,
-    originalPrice: body.originalPrice ? Number(body.originalPrice) : Number(body.price) * 1.2,
-    stock: Number(body.stock) || 10,
-    unit: body.unit || 'piece',
-    rating: 5.0,
-    reviewsCount: 0,
-    imageUrl: body.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
-    description: body.description || '',
-    artisanStory: body.artisanStory || 'Directly crafted in rural workshops and verified by Gram AI cluster lead.',
-    materials: Array.isArray(body.materials) ? body.materials : ['Natural Material', 'Handcrafted'],
-    inStock: true,
-    featured: false,
-    fairTradePercent: body.fairTradePercent ? Number(body.fairTradePercent) : 86
-  };
-  dbProducts.unshift(newProduct);
-  res.status(201).json({ product: newProduct });
-});
-
-app.put('/api/products/:id', (req: Request, res: Response) => {
-  const index = dbProducts.findIndex(p => p.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Product not found' });
+app.post('/api/products', authenticate, requireSellerOrAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const body = req.body || {};
+  const title = String(body.title || '').trim();
+  const price = Number(body.price);
+  if (!title || Number.isNaN(price) || price <= 0) {
+    return res.status(400).json({ error: 'Valid product title and positive price are required.' });
   }
-  dbProducts[index] = { ...dbProducts[index], ...req.body };
-  res.json({ product: dbProducts[index] });
+
+  const rawList: string[] = Array.isArray(body.images)
+    ? body.images.map((u: any) => String(u || '').trim()).filter(Boolean)
+    : [];
+  const rawPrimary = String(body.imageUrl || '').trim();
+
+  const imgCheck = validateAndCheckProductImages(null, rawPrimary, rawList);
+  if (!imgCheck.ok) {
+    return res.status(imgCheck.status).json({ error: imgCheck.error });
+  }
+
+  const id = `prod-${Date.now()}`;
+  const sku = String(body.sku || `FG-${id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}`).trim().toUpperCase();
+  const existingSku = db.prepare('SELECT id, title FROM products WHERE UPPER(sku) = ?').get(sku) as any;
+  if (existingSku) {
+    return res.status(409).json({ error: `SKU "${sku}" is already assigned to "${existingSku.title}". Please use a unique SKU.` });
+  }
+
+  const artisanRow = db.prepare('SELECT id, name, location FROM users WHERE id = ?').get(req.authUser!.userId) as any;
+  const stockNum = Math.max(0, Number(body.stock) || 10);
+  const nowIso = new Date().toISOString();
+
+  const rawDocs = Array.isArray(body.documents) ? body.documents : [];
+  const boundDocs = rawDocs
+    .filter((d: any) => d && String(d.title || '').trim())
+    .map((d: any, idx: number) => ({
+      id: String(d.id || `doc-${id}-${idx + 1}`),
+      productId: id,
+      title: String(d.title).trim(),
+      docType: ['certificate', 'specification', 'provenance', 'care_guide', 'lab_report'].includes(d.docType) ? d.docType : 'specification',
+      issuer: String(d.issuer || artisanRow?.name || req.authUser!.name),
+      verified: Boolean(d.verified ?? true),
+      summary: String(d.summary || '').trim(),
+      url: d.url ? String(d.url).trim() : undefined
+    }));
+
+  const specs = body.specifications && typeof body.specifications === 'object' ? { ...body.specifications, SKU: sku } : { SKU: sku };
+
+  db.prepare(`
+    INSERT INTO products (
+      id, sku, artisan_id, artisan_name, artisan_location, title, brand, model, category,
+      condition, price, original_price, stock, unit, rating, reviews_count, image_url,
+      images_json, description, specifications_json, documents_json, warranty, return_policy, defects_notice,
+      verified_seller, seller_verification_badge, authenticity_status, artisan_story,
+      materials_json, in_stock, featured, fair_trade_percent, deal_badge, moderation_status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 5.0, 0, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'Verified Seller Unit', 'verified', ?, ?, ?, 0, 86, ?, 'approved', ?, ?)
+  `).run(
+    id,
+    sku,
+    body.artisanId || artisanRow?.id || req.authUser!.userId,
+    body.artisanName || artisanRow?.name || req.authUser!.name,
+    body.artisanLocation || artisanRow?.location || 'India',
+    title,
+    String(body.brand || ''),
+    String(body.model || ''),
+    String(body.category || 'handicrafts'),
+    String(body.condition || 'new'),
+    price,
+    body.originalPrice ? Number(body.originalPrice) : null,
+    stockNum,
+    String(body.unit || 'piece'),
+    imgCheck.primaryImage,
+    JSON.stringify(imgCheck.dedupedImages),
+    String(body.description || 'Verified product listed on GramSetu Marketplace.'),
+    JSON.stringify(specs),
+    JSON.stringify(boundDocs),
+    String(body.warranty || 'Seller Standard Replacement Policy'),
+    String(body.returnPolicy || '7-Day Return Policy'),
+    String(body.defectsNotice || ''),
+    String(body.artisanStory || 'Direct producer unit on GramSetu.'),
+    JSON.stringify(Array.isArray(body.materials) ? body.materials : ['Verified Materials']),
+    stockNum > 0 ? 1 : 0,
+    body.dealBadge || null,
+    nowIso,
+    nowIso
+  );
+
+  const created = db.prepare('SELECT * FROM products WHERE id = ?').get(id) as any;
+  res.status(201).json({ product: mapProductRow(created) });
 });
 
-app.delete('/api/products/:id', (req: Request, res: Response) => {
-  dbProducts = dbProducts.filter(p => p.id !== req.params.id);
+app.put('/api/products/:id', authenticate, requireSellerOrAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id) as any;
+  if (!existing) {
+    return res.status(404).json({ error: 'Product not found.' });
+  }
+  if (req.authUser!.role !== 'admin' && existing.artisan_id !== req.authUser!.userId) {
+    return res.status(403).json({ error: 'You may only edit your own listings.' });
+  }
+
+  const b = req.body || {};
+  const stockNum = b.stock !== undefined ? Math.max(0, Number(b.stock)) : existing.stock;
+  const inStock = b.inStock !== undefined ? (b.inStock ? 1 : 0) : stockNum > 0 ? 1 : 0;
+
+  let nextPrimary = existing.image_url || '';
+  let nextImagesJson = existing.images_json || '[]';
+  if (b.imageUrl !== undefined || b.images !== undefined) {
+    const rawPrimary = b.imageUrl !== undefined ? String(b.imageUrl || '').trim() : '';
+    const rawList: string[] = Array.isArray(b.images)
+      ? b.images.map((u: any) => String(u || '').trim()).filter(Boolean)
+      : rawPrimary
+      ? [rawPrimary]
+      : [];
+
+    const imgCheck = validateAndCheckProductImages(existing.id, rawPrimary, rawList);
+    if (!imgCheck.ok) {
+      return res.status(imgCheck.status).json({ error: imgCheck.error });
+    }
+    nextPrimary = imgCheck.primaryImage;
+    nextImagesJson = JSON.stringify(imgCheck.dedupedImages);
+  }
+
+  let nextSku = existing.sku || `FG-${String(existing.id).replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}`;
+  if (b.sku !== undefined && String(b.sku).trim()) {
+    const candidateSku = String(b.sku).trim().toUpperCase();
+    const conflictSku = db.prepare('SELECT id, title FROM products WHERE UPPER(sku) = ? AND id != ?').get(candidateSku, existing.id) as any;
+    if (conflictSku) {
+      return res.status(409).json({ error: `SKU "${candidateSku}" is already assigned to "${conflictSku.title}".` });
+    }
+    nextSku = candidateSku;
+  }
+
+  let nextDocsJson = existing.documents_json || '[]';
+  if (Array.isArray(b.documents)) {
+    const boundDocs = b.documents
+      .filter((d: any) => d && String(d.title || '').trim())
+      .map((d: any, idx: number) => ({
+        id: String(d.id || `doc-${existing.id}-${idx + 1}`),
+        productId: existing.id,
+        title: String(d.title).trim(),
+        docType: ['certificate', 'specification', 'provenance', 'care_guide', 'lab_report'].includes(d.docType) ? d.docType : 'specification',
+        issuer: String(d.issuer || existing.artisan_name),
+        verified: Boolean(d.verified ?? true),
+        summary: String(d.summary || '').trim(),
+        url: d.url ? String(d.url).trim() : undefined
+      }));
+    nextDocsJson = JSON.stringify(boundDocs);
+  }
+
+  const nextSpecsJson = b.specifications && typeof b.specifications === 'object'
+    ? JSON.stringify({ ...b.specifications, SKU: nextSku })
+    : existing.specifications_json;
+
+  const nowIso = new Date().toISOString();
+
+  db.prepare(`
+    UPDATE products
+    SET sku = ?, title = ?, brand = ?, model = ?, category = ?, condition = ?, price = ?,
+        original_price = ?, stock = ?, unit = ?, image_url = ?, images_json = ?,
+        description = ?, specifications_json = ?, documents_json = ?, warranty = ?, return_policy = ?, defects_notice = ?,
+        in_stock = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    nextSku,
+    b.title ?? existing.title,
+    b.brand ?? existing.brand,
+    b.model ?? existing.model,
+    b.category ?? existing.category,
+    b.condition ?? existing.condition,
+    b.price !== undefined ? Number(b.price) : existing.price,
+    b.originalPrice !== undefined ? (b.originalPrice ? Number(b.originalPrice) : null) : existing.original_price,
+    stockNum,
+    b.unit ?? existing.unit,
+    nextPrimary,
+    nextImagesJson,
+    b.description ?? existing.description,
+    nextSpecsJson,
+    nextDocsJson,
+    b.warranty ?? existing.warranty,
+    b.returnPolicy ?? existing.return_policy,
+    b.defectsNotice ?? existing.defects_notice,
+    inStock,
+    nowIso,
+    req.params.id
+  );
+
+  // Also sync order items' snapshot image/title if needed? No, historical orders keep snapshot unless reconciled, or keep live product updated cleanly.
+  const updated = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id) as any;
+  res.json({ product: mapProductRow(updated) });
+});
+
+app.delete('/api/products/:id', authenticate, requireSellerOrAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id) as any;
+  if (!existing) {
+    return res.status(404).json({ error: 'Product not found.' });
+  }
+  if (req.authUser!.role !== 'admin' && existing.artisan_id !== req.authUser!.userId) {
+    return res.status(403).json({ error: 'You may only delete your own listings.' });
+  }
+  db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 
-// ==================== ORDERS & PAYMENTS ROUTES ====================
-app.get('/api/orders', (req: Request, res: Response) => {
-  const { customerId, artisanId } = req.query;
-  let results = [...dbOrders];
-  if (customerId) {
-    results = results.filter(o => o.customerId === customerId);
-  }
-  // For entrepreneur view, filter orders containing artisan's products or return all if demo
-  if (artisanId) {
-    results = results.filter(o =>
-      o.items.some(item => {
-        const prod = dbProducts.find(p => p.id === item.productId);
-        return prod?.artisanId === artisanId || item.artisanName.toLowerCase().includes('sunita');
-      })
-    );
-    if (results.length === 0) results = dbOrders.slice(0, 5); // Fallback for smooth demo
-  }
-  res.json({ orders: results });
+app.post('/api/products/:id/report', (req: Request, res: Response) => {
+  const row = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Product not found.' });
+  const reason = String(req.body?.reason || 'Reported by buyer for quality/authenticity inspection.');
+  db.prepare("UPDATE products SET moderation_status = 'reported', reported_reason = ? WHERE id = ?").run(reason, req.params.id);
+  res.json({ success: true, message: 'Listing has been flagged for administrator review.' });
 });
 
-app.post('/api/orders', (req: Request, res: Response) => {
-  const { customerId, customerName, customerPhone, shippingAddress, items, totalAmount, paymentMethod, upiRefId } = req.body;
-  const orderId = `ORD-2026-${Math.floor(100 + Math.random() * 900)}`;
-  const trackingId = `GRAM-${Math.floor(10000 + Math.random() * 90000)}`;
+// ==================== DEALS & COUPONS ====================
+app.get('/api/deals', (_req: Request, res: Response) => {
+  const rows = db.prepare('SELECT * FROM deals ORDER BY discount_percentage DESC').all() as any[];
+  res.json({ deals: rows.map(mapDealRow) });
+});
 
-  const newOrder: Order = {
-    id: orderId,
-    trackingId,
-    customerId: customerId || 'user-customer-1',
-    customerName: customerName || 'Valued Buyer',
-    customerPhone: customerPhone || '+91 98000 00000',
-    shippingAddress: shippingAddress || 'Bengaluru, India',
-    items: items || [],
-    totalAmount: Number(totalAmount) || 1200,
-    paymentMethod: paymentMethod || 'UPI',
-    paymentStatus: 'PAID',
-    upiRefId: upiRefId || `UPI-GRAM-${Date.now()}`,
-    orderStatus: 'placed',
-    createdAt: new Date().toISOString(),
-    deliveryDateEstimated: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    currentHub: 'Village SHG Aggregation Node, Madhubani',
-    deliveryPartner: 'Gram Express & India Post Rural Relay',
-    deliveryAgentPhone: '+91 94310 44521',
-    deliveryOtp: `${Math.floor(1000 + Math.random() * 9000)}`
-  };
+app.post('/api/deals/apply-coupon', (req: Request, res: Response) => {
+  const couponCode = String(req.body?.couponCode || '').trim().toUpperCase();
+  const orderTotal = Number(req.body?.orderTotal) || 0;
+  if (!couponCode) {
+    return res.status(400).json({ valid: false, message: 'Please enter a coupon code.' });
+  }
+  const row = db.prepare('SELECT * FROM deals WHERE UPPER(coupon_code) = ? AND verified = 1').get(couponCode) as any;
+  if (!row) {
+    return res.status(404).json({ valid: false, message: 'Invalid or expired coupon code.' });
+  }
+  const deal = mapDealRow(row);
+  if (deal.validUntil && new Date(deal.validUntil) < new Date()) {
+    return res.status(400).json({ valid: false, message: 'This promotional coupon has expired.' });
+  }
+  if (orderTotal < deal.minOrderValue) {
+    return res.status(400).json({
+      valid: false,
+      message: `Minimum order value for ${deal.couponCode} is ₹${deal.minOrderValue}.`
+    });
+  }
+  const discountAmount = Math.round((orderTotal * deal.discountPercentage) / 100);
+  res.json({
+    valid: true,
+    couponCode: deal.couponCode,
+    discountPercentage: deal.discountPercentage,
+    discountAmount,
+    newTotal: Math.max(0, orderTotal - discountAmount),
+    message: `${deal.discountPercentage}% Discount Applied via ${deal.couponCode}!`
+  });
+});
 
-  // Reduce product stocks
-  if (items && Array.isArray(items)) {
-    for (const item of items) {
-      const prod = dbProducts.find(p => p.id === item.productId);
-      if (prod) {
-        prod.stock = Math.max(0, prod.stock - (item.quantity || 1));
-      }
+// ==================== REVIEWS ====================
+app.get('/api/reviews', (req: Request, res: Response) => {
+  const productId = req.query.productId ? String(req.query.productId) : null;
+  const sort = String(req.query.sort || 'newest');
+
+  let orderBy = 'date DESC';
+  if (sort === 'highest') orderBy = 'rating DESC, helpful_count DESC';
+  else if (sort === 'helpful') orderBy = 'helpful_count DESC, rating DESC';
+
+  const rows = productId
+    ? (db.prepare(`SELECT * FROM product_reviews WHERE product_id = ? ORDER BY ${orderBy}`).all(productId) as any[])
+    : (db.prepare(`SELECT * FROM product_reviews ORDER BY ${orderBy}`).all() as any[]);
+  res.json({ reviews: rows.map(mapReviewRow) });
+});
+
+app.post('/api/reviews', optionalAuth, (req: AuthenticatedRequest, res: Response) => {
+  const b = req.body || {};
+  const productId = String(b.productId || '').trim();
+  const userId = req.authUser?.userId || String(b.userId || 'user-customer-1');
+  const userName = req.authUser?.name || String(b.userName || 'Verified Buyer');
+
+  if (!productId || !b.comment || !String(b.comment).trim()) {
+    return res.status(400).json({ error: 'Product ID and review comment are required.' });
+  }
+
+  const productRow = db.prepare('SELECT id FROM products WHERE id = ?').get(productId);
+  if (!productRow) {
+    return res.status(404).json({ error: 'Product not found.' });
+  }
+
+  const existing = db.prepare('SELECT id FROM product_reviews WHERE product_id = ? AND user_id = ?').get(productId, userId);
+  if (existing) {
+    return res.status(400).json({ error: 'You have already submitted a review for this product.' });
+  }
+
+  // Genuine verified-purchase check against orders table
+  const userOrders = db.prepare("SELECT items_json FROM orders WHERE customer_id = ? AND order_status != 'cancelled'").all(userId) as any[];
+  const hasPurchased = userOrders.some(o => {
+    try {
+      const items = JSON.parse(o.items_json) as any[];
+      return items.some(it => it.productId === productId);
+    } catch {
+      return false;
+    }
+  });
+
+  const overall = Math.min(5, Math.max(1, Number(b.rating) || 5));
+  const id = `rev-${Date.now()}`;
+  const today = new Date().toISOString().split('T')[0];
+
+  db.prepare(`
+    INSERT INTO product_reviews (
+      id, product_id, user_id, user_name, user_avatar, rating,
+      quality_rating, durability_rating, value_for_money_rating, seller_experience_rating,
+      comment, date, verified_purchase, review_images_json, helpful_count, reported
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+  `).run(
+    id,
+    productId,
+    userId,
+    userName,
+    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(userName)}`,
+    overall,
+    Number(b.qualityRating) || overall,
+    Number(b.durabilityRating) || overall,
+    Number(b.valueForMoneyRating) || overall,
+    Number(b.sellerExperienceRating) || overall,
+    String(b.comment).trim(),
+    today,
+    hasPurchased ? 1 : 0,
+    JSON.stringify(Array.isArray(b.reviewImages) ? b.reviewImages : [])
+  );
+
+  // Recompute product rating & review count
+  const stats = db.prepare('SELECT COUNT(*) as cnt, AVG(rating) as avgRating FROM product_reviews WHERE product_id = ?').get(productId) as any;
+  db.prepare('UPDATE products SET rating = ?, reviews_count = ? WHERE id = ?').run(
+    Number((stats.avgRating || overall).toFixed(1)),
+    stats.cnt || 1,
+    productId
+  );
+
+  const created = db.prepare('SELECT * FROM product_reviews WHERE id = ?').get(id) as any;
+  res.status(201).json({ review: mapReviewRow(created) });
+});
+
+app.post('/api/reviews/:id/helpful', (req: Request, res: Response) => {
+  const row = db.prepare('SELECT id, helpful_count FROM product_reviews WHERE id = ?').get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Review not found.' });
+  const nextCount = (row.helpful_count || 0) + 1;
+  db.prepare('UPDATE product_reviews SET helpful_count = ? WHERE id = ?').run(nextCount, row.id);
+  res.json({ success: true, helpfulCount: nextCount });
+});
+
+app.post('/api/reviews/:id/report', (req: Request, res: Response) => {
+  const row = db.prepare('SELECT id FROM product_reviews WHERE id = ?').get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Review not found.' });
+  const reason = String(req.body?.reason || 'Customer flagged review for moderation.');
+  db.prepare('UPDATE product_reviews SET reported = 1, report_reason = ? WHERE id = ?').run(reason, row.id);
+  res.json({ success: true, message: 'Review flagged for admin moderation review.' });
+});
+
+// ==================== ORDERS & PAYMENTS & LOGISTICS ====================
+app.get('/api/orders', (req: Request, res: Response) => {
+  const customerId = req.query.customerId ? String(req.query.customerId) : null;
+  const artisanId = req.query.artisanId ? String(req.query.artisanId) : null;
+  const rows = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all() as any[];
+  let orders = rows.map(mapOrderRow);
+
+  if (customerId) {
+    orders = orders.filter(o => o.customerId === customerId);
+  }
+  if (artisanId) {
+    orders = orders.filter(o => o.items.some(item => item.artisanId === artisanId));
+  }
+  res.json({ orders });
+});
+
+app.post('/api/orders', optionalAuth, (req: AuthenticatedRequest, res: Response) => {
+  const b = req.body || {};
+  const rawItems = Array.isArray(b.items) ? b.items : [];
+  if (rawItems.length === 0) {
+    return res.status(400).json({ error: 'Order must contain at least one item.' });
+  }
+
+  let computedTotal = 0;
+  const verifiedItems: any[] = [];
+  for (const item of rawItems) {
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const prodRow = item.productId
+      ? (db.prepare('SELECT * FROM products WHERE id = ?').get(String(item.productId)) as any)
+      : null;
+
+    if (prodRow) {
+      computedTotal += prodRow.price * qty;
+      verifiedItems.push({
+        productId: prodRow.id,
+        title: prodRow.title,
+        price: prodRow.price,
+        quantity: qty,
+        imageUrl: prodRow.image_url,
+        artisanId: prodRow.artisan_id,
+        artisanName: prodRow.artisan_name
+      });
+    } else {
+      const unitPrice = Math.max(0, Number(item.price) || 0);
+      computedTotal += unitPrice * qty;
+      verifiedItems.push({ ...item, price: unitPrice, quantity: qty });
     }
   }
 
-  dbOrders.unshift(newOrder);
-  res.status(201).json({ order: newOrder });
+  if (b.couponCode) {
+    const dealRow = db.prepare('SELECT * FROM deals WHERE UPPER(coupon_code) = ? AND verified = 1').get(String(b.couponCode).trim().toUpperCase()) as any;
+    if (dealRow && computedTotal >= dealRow.min_order_value) {
+      computedTotal = Math.max(0, computedTotal - Math.round((computedTotal * dealRow.discount_percentage) / 100));
+    }
+  }
+
+  const orderId = `ORD-2026-${Math.floor(100 + Math.random() * 900)}`;
+  const trackingId = `GRAM-${Math.floor(10000 + Math.random() * 90000)}`;
+  const nowIso = new Date().toISOString();
+  const estDate = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+  const otp = String(Math.floor(1000 + Math.random() * 9000));
+
+  db.prepare(`
+    INSERT INTO orders (
+      id, tracking_id, customer_id, customer_name, customer_phone, shipping_address,
+      items_json, total_amount, payment_method, payment_status, upi_ref_id,
+      order_status, created_at, delivery_date_estimated, current_hub,
+      delivery_partner, delivery_agent_phone, delivery_otp
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'UPI', 'PAID', ?, 'placed', ?, ?, ?, 'India Post Gram Relay', '+91 98100 11223', ?)
+  `).run(
+    orderId,
+    trackingId,
+    req.authUser?.userId || String(b.customerId || 'user-customer-1'),
+    req.authUser?.name || String(b.customerName || 'Valued Buyer'),
+    String(b.customerPhone || '+91 98112 34567'),
+    String(b.shippingAddress || 'Delivery Address'),
+    JSON.stringify(verifiedItems),
+    computedTotal || Number(b.totalAmount) || 0,
+    String(b.upiRefId || `NPCI-UPI-${Date.now().toString().slice(-8)}`),
+    nowIso,
+    estDate,
+    'District Nodal Origin Hub',
+    otp
+  );
+
+  const created = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as any;
+  res.status(201).json({ order: mapOrderRow(created) });
 });
 
 app.patch('/api/orders/:id/status', (req: Request, res: Response) => {
-  const { orderStatus, currentHub } = req.body;
-  const order = dbOrders.find(o => o.id === req.params.id);
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
-  }
-  if (orderStatus) order.orderStatus = orderStatus;
-  if (currentHub) order.currentHub = currentHub;
-  res.json({ order });
+  const row = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Order not found' });
+  const { orderStatus, currentHub } = req.body || {};
+  db.prepare('UPDATE orders SET order_status = ?, current_hub = ? WHERE id = ?').run(
+    orderStatus || row.order_status,
+    currentHub || row.current_hub,
+    row.id
+  );
+  const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(row.id) as any;
+  res.json({ order: mapOrderRow(updated) });
 });
 
-// ==================== UPI PAYMENT GENERATION ====================
+app.post('/api/orders/:id/cancel', (req: Request, res: Response) => {
+  const row = db.prepare('SELECT * FROM orders WHERE id = ? OR tracking_id = ?').get(req.params.id, req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Order not found' });
+  if (row.order_status === 'delivered') {
+    return res.status(400).json({ error: 'Delivered orders cannot be cancelled. You can request a return instead.' });
+  }
+  const reason = String(req.body?.reason || 'Customer requested order cancellation before delivery.');
+  db.prepare("UPDATE orders SET order_status = 'cancelled', cancellation_reason = ? WHERE id = ?").run(reason, row.id);
+  const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(row.id) as any;
+  res.json({ success: true, order: mapOrderRow(updated), message: 'Order cancelled and UPI escrow refund initiated.' });
+});
+
+app.post('/api/orders/:id/return', (req: Request, res: Response) => {
+  const row = db.prepare('SELECT * FROM orders WHERE id = ? OR tracking_id = ?').get(req.params.id, req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Order not found' });
+  const reason = String(req.body?.reason || 'Customer requested return and replacement inspection.');
+  db.prepare("UPDATE orders SET order_status = 'return_requested', return_reason = ? WHERE id = ?").run(reason, row.id);
+  const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(row.id) as any;
+  res.json({ success: true, order: mapOrderRow(updated), message: 'Return request submitted. Pickup scheduled.' });
+});
+
 app.post('/api/payments/create-upi', (req: Request, res: Response) => {
-  const { amount, customerName, orderId } = req.body;
+  const { amount, orderId } = req.body || {};
   const txnId = `TXN${Date.now()}`;
-  const upiId = 'gramai.merchants@sbi';
-  const qrString = `upi://pay?pa=${upiId}&pn=GramAI_RuralCrafts&am=${amount}&tn=Order_${orderId || 'Cart'}&cu=INR&tr=${txnId}`;
+  const upiId = 'gramsetu.escrow@sbi';
+  const qrString = `upi://pay?pa=${upiId}&pn=GramSetu_Escrow&am=${amount}&tn=Order_${orderId || 'Cart'}&cu=INR&tr=${txnId}`;
 
   res.json({
     txnId,
     upiId,
     qrString,
     amount,
-    merchantName: 'Gram AI Village Producers Co-op',
+    merchantName: 'GramSetu Escrow Settlement',
     timestamp: new Date().toISOString()
   });
 });
 
 app.post('/api/payments/verify', (req: Request, res: Response) => {
-  const { txnId, upiRefId } = req.body;
+  const { txnId, upiRefId } = req.body || {};
   res.json({
     status: 'SUCCESS',
     txnId,
     bankRef: upiRefId || `NPCI-UPI-${Math.floor(1000000000 + Math.random() * 9000000000)}`,
     verifiedAt: new Date().toISOString(),
-    escrowNote: 'Secured in Gram AI Rural Escrow. Released to artisan upon hub dispatch verification.'
+    escrowNote: 'Secured in GramSetu Escrow until delivery confirmation.'
   });
 });
 
-// ==================== LOGISTICS & DELIVERY TRACKING ====================
 app.get('/api/deliveries/track/:trackingId', (req: Request, res: Response) => {
-  const { trackingId } = req.params;
-  const order = dbOrders.find(o => o.trackingId.toLowerCase() === trackingId.toLowerCase() || o.id.toLowerCase() === trackingId.toLowerCase());
+  const tid = String(req.params.trackingId || '').trim();
+  const row = db
+    .prepare('SELECT * FROM orders WHERE LOWER(tracking_id) = LOWER(?) OR LOWER(id) = LOWER(?)')
+    .get(tid, tid) as any;
 
-  if (!order) {
-    // Return sample detailed tracking for demo tracking code
+  if (!row) {
     return res.json({
-      trackingId,
+      trackingId: tid,
       found: false,
-      message: 'Consignment not found. Try search with sample tracking code GRAM-88219 or ORD-2026-901'
+      message: 'Consignment not found. Try searching with sample tracking ID GRAM-88219 or ORD-2026-901.'
     });
   }
 
-  // Generate realistic milestone steps based on status
+  const order = mapOrderRow(row);
   const stages = [
     {
       step: 1,
-      title: 'Village SHG Origin Hub',
-      location: 'Madhubani Rural Artisan Center, Bihar',
+      title: 'Origin Producer Hub',
+      location: 'Varanasi & Madhubani Origin Cluster',
       status: 'completed',
-      time: '24 Sep, 02:40 PM',
-      description: 'Quality inspected, barcode stamped, and packaged using organic shock-cushion materials.'
+      time: 'Stage 1 Completed',
+      description: 'Quality inspected, barcoded, and packaged.'
     },
     {
       step: 2,
       title: 'District Nodal Aggregation Hub',
-      location: 'Patna Central Gram Hub, Bihar',
+      location: 'Regional Gram Relay Center',
       status: order.orderStatus === 'placed' ? 'current' : 'completed',
-      time: '25 Sep, 09:15 AM',
-      description: 'Consolidated with regional craft consignment. Transferred to Gram Express Relay.'
+      time: 'Stage 2',
+      description: 'Consolidated with regional consignment for dispatch.'
     },
     {
       step: 3,
-      title: 'Interstate Transport & Air/Rail Sorting',
-      location: 'Nagpur National Postal Sorting Hub',
-      status: ['dispatched', 'out_for_delivery', 'delivered'].includes(order.orderStatus) ? 'completed' : order.orderStatus === 'packed' ? 'current' : 'pending',
-      time: '26 Sep, 07:30 PM',
-      description: 'Container batch sealed with tamper-evident digital tag.'
+      title: 'Interstate Transit Sorting',
+      location: 'National Postal Sorting Hub',
+      status: ['dispatched', 'out_for_delivery', 'delivered'].includes(order.orderStatus)
+        ? 'completed'
+        : order.orderStatus === 'packed'
+        ? 'current'
+        : 'pending',
+      time: 'Stage 3',
+      description: 'Sealed container in transit.'
     },
     {
       step: 4,
-      title: 'Destination City Last-Mile Hub',
-      location: order.currentHub || 'Bengaluru East Distribution Hub, Indiranagar',
-      status: ['out_for_delivery', 'delivered'].includes(order.orderStatus) ? (order.orderStatus === 'delivered' ? 'completed' : 'current') : 'pending',
-      time: '27 Sep, 08:00 AM',
-      description: 'Assigned to local delivery associate. Delivery OTP generated.'
+      title: 'Destination Last-Mile Hub',
+      location: order.currentHub || 'Destination Distribution Hub',
+      status: ['out_for_delivery', 'delivered'].includes(order.orderStatus)
+        ? order.orderStatus === 'delivered'
+          ? 'completed'
+          : 'current'
+        : 'pending',
+      time: 'Stage 4',
+      description: 'Assigned for doorstep delivery with OTP verification.'
     },
     {
       step: 5,
-      title: 'Delivery to Customer Doorstep',
+      title: 'Delivered to Buyer',
       location: order.shippingAddress,
       status: order.orderStatus === 'delivered' ? 'completed' : 'pending',
-      time: order.orderStatus === 'delivered' ? '27 Sep, 11:30 AM' : 'Estimated 28 Sep',
-      description: order.orderStatus === 'delivered' ? 'Delivered successfully. Payment confirmed directly to artisan.' : 'Awaiting OTP handoff at recipient address.'
+      time: order.orderStatus === 'delivered' ? 'Delivered' : `Estimated ${order.deliveryDateEstimated}`,
+      description: order.orderStatus === 'delivered' ? 'Delivered and escrow released.' : 'Awaiting OTP handoff.'
     }
   ];
 
@@ -619,518 +1453,179 @@ app.get('/api/deliveries/track/:trackingId', (req: Request, res: Response) => {
     stages,
     partner: {
       name: order.deliveryPartner,
-      vehicle: 'BR-06-EA-4912 (Eco EV Van)',
+      vehicle: 'India Post Gram Relay',
       agent: order.deliveryAgentPhone,
       otp: order.deliveryOtp
     }
   });
 });
 
-// ==================== BUSINESS SCHEMES, LOANS & SUBSIDIES ====================
-let dbSchemes = [
-  {
-    id: 'pm_vishwakarma',
-    name: 'PM Vishwakarma Yojana',
-    tagline: 'Collateral-Free Artisan Loan & ₹15,000 Modern Toolkit Voucher',
-    ministry: 'Ministry of Micro, Small & Medium Enterprises (MoMSME)',
-    maxLoanAmount: 300000,
-    loanDisplay: '₹3,00,000',
-    tranches: 'Tranche 1: ₹1,00,000 (18 mo) · Tranche 2: ₹2,00,000 (30 mo)',
-    interestRate: '5% p.a. (Fixed Subsidized Rate)',
-    interestSubvention: '8% paid by Central Govt',
-    subsidyGrant: '₹15,000 E-Voucher for modern toolkits + ₹500/day training stipend',
-    collateral: '100% Collateral-Free (Covered by Govt Credit Guarantee)',
-    category: 'artisan_toolkits',
-    badge: 'Trending · Most Popular for Artisans',
-    eligibleTrades: ['Weavers & Handloom Tailors', 'Potters & Clay Crafters', 'Carpenters & Woodworkers', 'Blacksmiths & Metal Crafters', 'Leather Footwear Makers', 'Basket & Mat Weavers'],
-    processingTime: '3-5 Days Direct Bank Credit',
-    documents: ['Aadhaar Card (Linked with Phone)', 'Bank Account Passbook', 'Skill Self-Declaration', 'Gram AI Verified Artisan ID']
-  },
-  {
-    id: 'pm_mudra',
-    name: 'Pradhan Mantri MUDRA Yojana (PMMY)',
-    tagline: 'Collateral-Free Working Capital Loans up to ₹20 Lakh',
-    ministry: 'Department of Financial Services, Ministry of Finance',
-    maxLoanAmount: 2000000,
-    loanDisplay: 'Up to ₹20,00,000',
-    tranches: 'Shishu (up to ₹50k) · Kishore (₹50k-₹5L) · Tarun (₹5L-₹10L) · Tarun Plus (₹10L-₹20L)',
-    interestRate: '7.8% - 9.2% p.a. (No Prepayment Penalty)',
-    interestSubvention: 'CGFMU Guarantee (100% loss absorption by Govt)',
-    subsidyGrant: 'Zero processing fee for Shishu & Kishore tiers',
-    collateral: 'Nil / Zero Third-Party Guarantee Required',
-    category: 'collateral_free_loans',
-    badge: 'Instant Working Capital',
-    eligibleTrades: ['Small Retailers & Kirana Stores', 'Ration & Grain Distributors', 'Sports Goods Manufacturers', 'Apparel & Garment Sellers', 'Rural Agro-Processors'],
-    processingTime: '48 Hours Bank Disbursal',
-    documents: ['Aadhaar & PAN Card', 'Business Address Proof or Gram AI Profile', '6-Month Bank Statement', 'Udyam Registration (Free)']
-  },
-  {
-    id: 'pmegp',
-    name: "PMEGP (Prime Minister's Employment Generation)",
-    tagline: 'Up to 35% Direct Capital Subsidy on Manufacturing & Service Setups',
-    ministry: 'KVIC & Ministry of MSME',
-    maxLoanAmount: 5000000,
-    loanDisplay: 'Up to ₹50,00,000',
-    tranches: '₹50 Lakh (Manufacturing) · ₹20 Lakh (Service & Trading units)',
-    interestRate: '8.2% - 9.0% p.a.',
-    interestSubvention: 'Direct Capital Subsidy: 25% (Rural General) to 35% (Rural SC/ST/Women/OBC)',
-    subsidyGrant: 'Government pays up to ₹17.5 Lakh directly as non-refundable grant',
-    collateral: 'Collateral-Free under CGTMSE up to ₹50 Lakh',
-    category: 'capital_subsidies',
-    badge: 'Highest Govt Subsidy (35%)',
-    eligibleTrades: ['Flour & Spice Grinding Mills', 'Cricket Bat & Sports Equipment Workshops', 'Handloom & Textile Units', 'Natural Cosmetic & Oil Extraction', 'Eco-Packaging Units'],
-    processingTime: '7-10 Days via District KVIC',
-    documents: ['Project Report (Gram AI Instant Generator)', 'Aadhaar Card', 'Educational Certificate (8th pass for >₹10L)', 'Category/Rural Domicile Certificate']
-  },
-  {
-    id: 'stand_up_india',
-    name: 'Stand-Up India & Mahila Samridhi Scheme',
-    tagline: '₹10 Lakh to ₹1 Crore Loans Exclusively for Women & SC/ST Founders',
-    ministry: 'SIDBI & Ministry of Finance',
-    maxLoanAmount: 10000000,
-    loanDisplay: '₹10 Lakh - ₹1 Crore',
-    tranches: 'Composite loan covering 75% to 85% of total project cost',
-    interestRate: 'Lowest Bank Base Rate (MCLR + 3%)',
-    interestSubvention: 'Up to 15% Margin Money Support from State Subsidy Funds',
-    subsidyGrant: 'Free handholding by SIDBI & NABARD Mentors',
-    collateral: 'Backed by Credit Guarantee Scheme for Stand Up India (CGFSI)',
-    category: 'women_entrepreneurs',
-    badge: 'Empowering Women Founders',
-    eligibleTrades: ['Women-Led Enterprise', 'Self-Help Group Federations', 'Organic Farming Cooperatives', 'Direct E-Commerce Export Hubs'],
-    processingTime: '5-7 Working Days',
-    documents: ['Aadhaar & PAN', 'Proof of Majority Women Shareholding (>51%)', 'Detailed Project Proposal', 'Bank Statements']
-  },
-  {
-    id: 'nabard_shg',
-    name: 'NABARD Rural SHG Bank Linkage & Micro-Credit',
-    tagline: 'Group Micro-Loans with 3% Prompt Repayment Interest Incentive',
-    ministry: 'National Bank for Agriculture and Rural Development (NABARD)',
-    maxLoanAmount: 1000000,
-    loanDisplay: '₹2,00,000 - ₹10,00,000',
-    tranches: 'Tier 1: ₹2 Lakh · Tier 2: ₹5 Lakh · Tier 3: ₹10 Lakh per SHG group',
-    interestRate: 'Effective 4% - 7% p.a. (with prompt subvention)',
-    interestSubvention: '3% additional interest rebate for timely monthly repayments',
-    subsidyGrant: '₹25,000 Revolving Fund Grant per SHG group',
-    collateral: 'Collateral-Free Peer Group Guarantee',
-    category: 'women_entrepreneurs',
-    badge: 'SHG Friendly · 4% Effective Interest',
-    eligibleTrades: ['Village Self-Help Groups (SHGs)', 'Joint Liability Groups (JLGs)', 'Women Handicraft Guilds', 'Farmer Producer Groups (FPOs)'],
-    processingTime: '3 Days via Regional Gramin Banks',
-    documents: ['SHG Resolution Register Copy', 'Group Savings Account Details', 'Aadhaar of Group Office Bearers']
-  },
-  {
-    id: 'odop_financial',
-    name: 'ODOP Financial Grant & Air/Sea Freight Subsidy',
-    tagline: '100% Free Grants for Packaging, Lab Testing & 50% Export Freight',
-    ministry: 'Ministry of Commerce & Industry (DPIIT)',
-    maxLoanAmount: 1000000,
-    loanDisplay: '₹10,00,000 Grant',
-    tranches: 'Direct Non-Repayable Grant (0% Interest, Nil Payback)',
-    interestRate: '0% (Non-Repayable Financial Grant)',
-    interestSubvention: '100% Government Grant for quality testing & certification',
-    subsidyGrant: '50% Freight Reimbursement for domestic & international shipments',
-    collateral: 'Zero Collateral (Direct Govt Welfare Grant)',
-    category: 'artisan_toolkits',
-    badge: '100% Non-Repayable Grant',
-    eligibleTrades: ['Varanasi Silk Textiles', 'Kashmir Willow Bat Guilds', 'Dehradun Basmati Producers', 'Kutch Kala Cotton Weavers', 'Moradabad Metal Artisans'],
-    processingTime: 'Instant Pre-Eligibility Confirmation',
-    documents: ['District Origin Proof', 'Gram AI Artisan Certificate', 'Bank Account Details']
-  }
-];
-
-let dbSchemeApplications: any[] = [
-  {
-    id: 'APP-VISHWA-8421',
-    applicantName: 'Vedant Mishra',
-    phone: '+91 94310 44521',
-    schemeId: 'pm_vishwakarma',
-    schemeName: 'PM Vishwakarma Yojana',
-    trade: 'Weavers & Handloom Tailors',
-    requestedAmount: 300000,
-    subsidyAmount: 15000,
-    status: 'Sanctioned & Direct Disbursal Ready',
-    appliedAt: '2024-09-24',
-    kioskLocation: 'Varanasi Central Gramin Kiosk #104'
-  }
-];
-
-app.get('/api/schemes', (_req: Request, res: Response) => {
-  res.json({
-    schemes: dbSchemes,
-    totalSubsidiesAvailable: '₹1,500+ Crore National Allocation',
-    verifiedKiosks: 154000,
-    recentApplications: dbSchemeApplications.length
-  });
+// ==================== MESSAGES, CHATS, TICKETS & PAYOUTS ====================
+app.get('/api/messages', (req: Request, res: Response) => {
+  const { userId, productId } = req.query;
+  const rows = db.prepare('SELECT * FROM messages ORDER BY timestamp ASC').all() as any[];
+  let results = rows.map(mapMessageRow);
+  if (userId) results = results.filter(m => m.senderId === userId || m.recipientId === userId);
+  if (productId) results = results.filter(m => m.productId === productId);
+  res.json({ messages: results });
 });
 
-app.post('/api/schemes/apply', (req: Request, res: Response) => {
-  const { applicantName, phone, aadhaarNumber, schemeId, trade, requestedAmount, location } = req.body;
-
-  const scheme = dbSchemes.find(s => s.id === schemeId) || dbSchemes[0];
-  const newApp = {
-    id: `APP-${scheme.id.toUpperCase().slice(0, 6)}-${Math.floor(1000 + Math.random() * 9000)}`,
-    applicantName: applicantName || 'Vedant Mishra',
-    phone: phone || '+91 94310 44521',
-    aadhaarMasked: aadhaarNumber ? `XXXX-XXXX-${String(aadhaarNumber).slice(-4)}` : 'XXXX-XXXX-4421',
-    schemeId: scheme.id,
-    schemeName: scheme.name,
-    trade: trade || 'Traditional Craft & Rural Enterprise',
-    requestedAmount: Number(requestedAmount) || scheme.maxLoanAmount,
-    subsidyBenefit: scheme.subsidyGrant,
-    status: 'Instant Pre-Approval Verified (Forwarded to Nodal Bank)',
-    appliedAt: new Date().toISOString().split('T')[0],
-    kioskLocation: location || 'Varanasi District Gramin Bank Branch #12'
-  };
-
-  dbSchemeApplications.unshift(newApp);
-
-  res.status(201).json({
-    success: true,
-    message: `Application submitted successfully for ${scheme.name}! Pre-approved under priority queue.`,
-    application: newApp
-  });
-});
-
-app.post('/api/schemes/calculate', (req: Request, res: Response) => {
-  const { amount = 200000, category = 'artisan', tenureYears = 3 } = req.body;
-  const numAmount = Number(amount) || 200000;
-  const numYears = Number(tenureYears) || 3;
-
-  let recommendedScheme = dbSchemes[0];
-  let interestRate = 0.05; // 5%
-  let subsidyPercent = 0;
-
-  if (category === 'women') {
-    recommendedScheme = dbSchemes[3]; // Stand-Up India or NABARD
-    interestRate = 0.06;
-    subsidyPercent = 15;
-  } else if (numAmount > 500000) {
-    recommendedScheme = dbSchemes[2]; // PMEGP
-    interestRate = 0.082;
-    subsidyPercent = 35;
-  } else if (category === 'retail' || category === 'sports' || category === 'ration') {
-    recommendedScheme = dbSchemes[1]; // MUDRA
-    interestRate = 0.08;
-    subsidyPercent = 0;
+app.post('/api/messages', (req: Request, res: Response) => {
+  const b = req.body || {};
+  if (!b.text || !String(b.text).trim()) {
+    return res.status(400).json({ error: 'Message text required' });
   }
-
-  const monthlyRate = interestRate / 12;
-  const totalMonths = numYears * 12;
-  const monthlyEmi = Math.round(
-    (numAmount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) /
-    (Math.pow(1 + monthlyRate, totalMonths) - 1)
+  const id = `msg-${Date.now()}`;
+  const ts = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO messages (id, product_id, product_title, sender_id, sender_name, sender_role, recipient_id, recipient_name, text, timestamp, read)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+  `).run(
+    id,
+    b.productId || 'prod-1',
+    b.productTitle || 'Verified Product',
+    b.senderId || 'user-customer-1',
+    b.senderName || 'Buyer',
+    b.senderRole || 'customer',
+    b.recipientId || 'user-artisan-1',
+    b.recipientName || 'Seller',
+    String(b.text).trim(),
+    ts
   );
-
-  const estimatedSubsidy = Math.round((numAmount * subsidyPercent) / 100);
-
-  res.json({
-    recommendedScheme,
-    requestedAmount: numAmount,
-    interestRateFormatted: `${(interestRate * 100).toFixed(1)}% p.a.`,
-    tenureYears: numYears,
-    monthlyEmi,
-    estimatedSubsidy,
-    netPayable: (monthlyEmi * totalMonths) - estimatedSubsidy,
-    collateralFree: true
-  });
+  const created = db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as any;
+  res.status(201).json({ message: mapMessageRow(created) });
 });
 
-// ==================== DEALS, OFFERS & SCHEMES ====================
-app.get('/api/deals', (_req: Request, res: Response) => {
-  res.json({ deals: dbDeals });
-});
-
-app.post('/api/deals/apply-coupon', (req: Request, res: Response) => {
-  const { couponCode, orderTotal = 0 } = req.body;
-  if (!couponCode) {
-    return res.status(400).json({ valid: false, message: 'Please enter a coupon code.' });
-  }
-
-  const cleanCode = String(couponCode).trim().toUpperCase();
-  const deal = dbDeals.find(d => d.couponCode === cleanCode && d.verified);
-
-  if (!deal) {
-    return res.status(404).json({ valid: false, message: 'Invalid or expired coupon code.' });
-  }
-
-  if (orderTotal < deal.minOrderValue) {
-    return res.status(400).json({ 
-      valid: false, 
-      message: `Minimum order value for ${cleanCode} is ₹${deal.minOrderValue}. Add more authentic products to qualify.` 
-    });
-  }
-
-  const discountAmount = Math.round((Number(orderTotal) * deal.discountPercentage) / 100);
-  res.json({
-    valid: true,
-    couponCode: deal.couponCode,
-    discountPercentage: deal.discountPercentage,
-    discountAmount,
-    newTotal: Math.max(0, Number(orderTotal) - discountAmount),
-    message: `${deal.discountPercentage}% Discount Applied via ${deal.couponCode}!`
-  });
-});
-
-// ==================== REVIEWS WITH CRITERIA & HELPFULNESS ====================
-app.get('/api/reviews', (req: Request, res: Response) => {
-  const { productId } = req.query;
-  let results = dbReviews;
-  if (productId) {
-    results = results.filter(r => r.productId === productId);
-  }
-  res.json({ reviews: results });
-});
-
-app.post('/api/reviews', (req: Request, res: Response) => {
-  const { 
-    productId, 
-    userId, 
-    userName, 
-    rating, 
-    qualityRating, 
-    durabilityRating, 
-    valueForMoneyRating, 
-    sellerExperienceRating, 
-    comment, 
-    reviewImages 
-  } = req.body;
-
-  // Check for duplicate review for the same purchase
-  const existing = dbReviews.find(r => r.productId === productId && r.userId === userId);
-  if (existing) {
-    return res.status(400).json({ error: 'You have already submitted a review for this product.' });
-  }
-
-  const overall = Number(rating) || 5;
-  const newRev: Review = {
-    id: `rev-${Date.now()}`,
-    productId,
-    userId: userId || 'user-customer-1',
-    userName: userName || 'Satisfied Patron',
-    userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-    rating: overall,
-    qualityRating: Number(qualityRating) || overall,
-    durabilityRating: Number(durabilityRating) || overall,
-    valueForMoneyRating: Number(valueForMoneyRating) || overall,
-    sellerExperienceRating: Number(sellerExperienceRating) || overall,
-    comment: comment || 'Wonderful authentic item direct from verified rural producers!',
-    date: new Date().toISOString().split('T')[0],
-    verifiedPurchase: true,
-    reviewImages: Array.isArray(reviewImages) ? reviewImages : [],
-    helpfulCount: 0,
-    reported: false
-  };
-
-  dbReviews.unshift(newRev);
-
-  // Update product average rating & review count
-  const prod = dbProducts.find(p => p.id === productId);
-  if (prod) {
-    const prodReviews = dbReviews.filter(r => r.productId === productId);
-    const avg = prodReviews.reduce((sum, r) => sum + r.rating, 0) / prodReviews.length;
-    prod.rating = Number(avg.toFixed(1));
-    prod.reviewsCount = prodReviews.length;
-  }
-
-  res.status(201).json({ review: newRev });
-});
-
-app.post('/api/reviews/:id/helpful', (req: Request, res: Response) => {
-  const rev = dbReviews.find(r => r.id === req.params.id);
-  if (!rev) return res.status(404).json({ error: 'Review not found' });
-  rev.helpfulCount = (rev.helpfulCount || 0) + 1;
-  res.json({ success: true, helpfulCount: rev.helpfulCount });
-});
-
-app.post('/api/reviews/:id/report', (req: Request, res: Response) => {
-  const rev = dbReviews.find(r => r.id === req.params.id);
-  if (!rev) return res.status(404).json({ error: 'Review not found' });
-  const { reason } = req.body;
-  rev.reported = true;
-  rev.reportReason = reason || 'Customer flagged review for moderation.';
-  res.json({ success: true, message: 'Review flagged for admin moderation review.' });
-});
-
-// ==================== PRODUCT REPORTING ====================
-app.post('/api/products/:id/report', (req: Request, res: Response) => {
-  const prod = dbProducts.find(p => p.id === req.params.id);
-  if (!prod) return res.status(404).json({ error: 'Product not found' });
-  const { reason } = req.body;
-  prod.moderationStatus = 'reported';
-  prod.reportedReason = reason || 'Reported by patron for quality/authenticity inspection.';
-  res.json({ success: true, message: 'Listing has been flagged for audit review by admin.' });
-});
-
-// ==================== ORDER CANCELLATIONS & RETURNS ====================
-app.post('/api/orders/:id/cancel', (req: Request, res: Response) => {
-  const order = dbOrders.find(o => o.id === req.params.id || o.trackingId === req.params.id);
-  if (!order) return res.status(404).json({ error: 'Order not found' });
-  if (order.orderStatus === 'delivered') {
-    return res.status(400).json({ error: 'Delivered orders cannot be cancelled. You can request a return instead.' });
-  }
-  const { reason } = req.body;
-  order.orderStatus = 'cancelled';
-  order.cancellationReason = reason || 'Customer requested order cancellation before delivery.';
-  res.json({ success: true, order, message: 'Order has been cancelled and UPI escrow refund initiated.' });
-});
-
-app.post('/api/orders/:id/return', (req: Request, res: Response) => {
-  const order = dbOrders.find(o => o.id === req.params.id || o.trackingId === req.params.id);
-  if (!order) return res.status(404).json({ error: 'Order not found' });
-  const { reason } = req.body;
-  order.orderStatus = 'return_requested';
-  order.returnReason = reason || 'Customer requested return and replacement inspection.';
-  res.json({ success: true, order, message: 'Return request submitted. India Post pickup scheduled.' });
-});
-
-// ==================== SUPPORT TICKETS ====================
 app.get('/api/support/tickets', (_req: Request, res: Response) => {
-  res.json({ tickets: dbTickets });
+  const rows = db.prepare('SELECT * FROM support_tickets ORDER BY created_at DESC').all() as any[];
+  res.json({ tickets: rows.map(mapTicketRow) });
 });
 
 app.post('/api/support/tickets', (req: Request, res: Response) => {
-  const { userId, userName, role, subject, category, message } = req.body;
-  const newTicket: SupportTicket = {
-    id: `TCK-${Math.floor(1000 + Math.random() * 9000)}`,
-    userId: userId || 'user-artisan-1',
-    userName: userName || 'Vedant Mishra',
-    role: role || 'entrepreneur',
-    subject: subject || 'Help needed with Gram AI portal',
-    category: category || 'general',
-    status: 'open',
-    priority: 'medium',
-    createdAt: new Date().toISOString(),
-    messages: [
-      {
-        sender: 'user',
-        text: message || 'I need help with my dispatch tracking.',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]
-  };
-  dbTickets.unshift(newTicket);
-  res.status(201).json({ ticket: newTicket });
+  const b = req.body || {};
+  const id = `TCK-${Math.floor(1000 + Math.random() * 9000)}`;
+  const nowIso = new Date().toISOString();
+  const messages = [
+    {
+      sender: 'user',
+      text: String(b.message || 'Need assistance with GramSetu.'),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  ];
+  db.prepare(`
+    INSERT INTO support_tickets (id, user_id, user_name, role, subject, category, status, priority, created_at, messages_json)
+    VALUES (?, ?, ?, ?, ?, ?, 'open', 'medium', ?, ?)
+  `).run(
+    id,
+    b.userId || 'user-artisan-1',
+    b.userName || 'User',
+    b.role || 'entrepreneur',
+    String(b.subject || 'Support Inquiry'),
+    String(b.category || 'general'),
+    nowIso,
+    JSON.stringify(messages)
+  );
+  const created = db.prepare('SELECT * FROM support_tickets WHERE id = ?').get(id) as any;
+  res.status(201).json({ ticket: mapTicketRow(created) });
 });
 
 app.post('/api/support/tickets/:id/reply', (req: Request, res: Response) => {
-  const ticket = dbTickets.find(t => t.id === req.params.id);
-  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-  const { text, sender } = req.body;
+  const row = db.prepare('SELECT * FROM support_tickets WHERE id = ?').get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Ticket not found' });
+  const ticket = mapTicketRow(row);
   ticket.messages.push({
-    sender: sender || 'user',
-    text: text || '',
+    sender: req.body?.sender === 'support' ? 'support' : 'user',
+    text: String(req.body?.text || ''),
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   });
+  db.prepare('UPDATE support_tickets SET messages_json = ? WHERE id = ?').run(JSON.stringify(ticket.messages), row.id);
   res.json({ ticket });
 });
 
-// ==================== DIRECT CUSTOMER-ARTISAN CHAT ====================
-let dbCustomerChats = [
-  {
-    id: 'chat-1',
-    customerId: 'user-customer-1',
-    customerName: 'Arjun Sharma',
-    customerAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80',
-    artisanId: 'user-artisan-1',
-    artisanName: 'Vedant Mishra (Mishra Craft Guild)',
-    productTitle: 'Hand-Painted Madhubani Tussar Silk Dupatta',
-    productId: 'prod-1',
-    unreadByArtisan: 1,
-    messages: [
-      {
-        sender: 'customer',
-        text: 'Namaste Vedant ji! I received the peacock dupatta yesterday and it looks stunning. Could your guild weave 2 matching dupattas with custom lotus borders for a family wedding next month?',
-        time: 'Yesterday, 04:15 PM'
-      },
-      {
-        sender: 'artisan',
-        text: 'Pranam Arjun ji! Thank you so much for treasuring our authentic artisan work. Yes, our weavers can customize the lotus border on natural tussar silk. It will take 12 days to hand-paint.',
-        time: 'Yesterday, 05:30 PM'
-      },
-      {
-        sender: 'customer',
-        text: 'Wonderful! Should I place the order directly here through the Gram AI portal?',
-        time: 'Today, 10:20 AM'
-      }
-    ]
-  },
-  {
-    id: 'chat-2',
-    customerId: 'user-customer-2',
-    customerName: 'Meera Iyer',
-    customerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-    artisanId: 'user-artisan-1',
-    artisanName: 'Vedant Mishra (Mishra Craft Guild)',
-    productTitle: 'Kutch Kala Cotton Handwoven Throw Blanket',
-    productId: 'prod-6',
-    unreadByArtisan: 0,
-    messages: [
-      {
-        sender: 'customer',
-        text: 'Hello, are the dyes 100% natural indigo and madder root? I have sensitive skin and prefer chemical-free textiles.',
-        time: '24 Sep, 11:00 AM'
-      },
-      {
-        sender: 'artisan',
-        text: 'Namaste Meera ji! Yes, we only use natural plant-based fermented indigo and madder roots with alum. Zero synthetic chemicals or azo dyes.',
-        time: '24 Sep, 11:45 AM'
-      }
-    ]
-  }
-];
-
+// Direct customer-artisan chat helper (persisted via messages table grouped by partner/product)
 app.get('/api/customer-chats', (req: Request, res: Response) => {
-  const { artisanId, customerId } = req.query;
-  let results = dbCustomerChats;
-  if (artisanId) {
-    results = results.filter(c => c.artisanId === artisanId);
+  const artisanId = req.query.artisanId ? String(req.query.artisanId) : 'user-artisan-1';
+  const rows = db.prepare('SELECT * FROM messages WHERE recipient_id = ? OR sender_id = ? ORDER BY timestamp ASC').all(artisanId, artisanId) as any[];
+  const msgs = rows.map(mapMessageRow);
+  const grouped = new Map<string, any>();
+
+  for (const m of msgs) {
+    const partnerId = m.senderId === artisanId ? m.recipientId : m.senderId;
+    const partnerName = m.senderId === artisanId ? m.recipientName : m.senderName;
+    const key = `${partnerId}:${m.productId}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        id: `chat-${partnerId}-${m.productId}`,
+        customerId: partnerId,
+        customerName: partnerName || 'Buyer',
+        customerAvatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(partnerName || 'Buyer')}`,
+        artisanId,
+        artisanName: 'Seller Unit',
+        productTitle: m.productTitle || 'Marketplace Item',
+        productId: m.productId,
+        unreadByArtisan: 0,
+        messages: []
+      });
+    }
+    const chat = grouped.get(key);
+    chat.messages.push({
+      sender: m.senderRole === 'entrepreneur' ? 'artisan' : 'customer',
+      text: m.text,
+      time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    if (!m.read && m.senderRole !== 'entrepreneur') {
+      chat.unreadByArtisan += 1;
+    }
   }
-  if (customerId) {
-    results = results.filter(c => c.customerId === customerId);
-  }
-  res.json({ chats: results });
+
+  res.json({ chats: Array.from(grouped.values()) });
 });
 
 app.post('/api/customer-chats/send', (req: Request, res: Response) => {
-  const { chatId, customerId, customerName, artisanId, artisanName, productTitle, productId, text, sender } = req.body;
-  let chat = dbCustomerChats.find(c => c.id === chatId);
-  
-  if (!chat) {
-    chat = {
-      id: `chat-${Date.now()}`,
+  const { customerId, customerName, artisanId, artisanName, productTitle, productId, text, sender } = req.body || {};
+  const id = `msg-${Date.now()}`;
+  const ts = new Date().toISOString();
+  const isArtisan = sender === 'artisan';
+  db.prepare(`
+    INSERT INTO messages (id, product_id, product_title, sender_id, sender_name, sender_role, recipient_id, recipient_name, text, timestamp, read)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+  `).run(
+    id,
+    productId || 'prod-1',
+    productTitle || 'Marketplace Product',
+    isArtisan ? artisanId || 'user-artisan-1' : customerId || 'user-customer-1',
+    isArtisan ? artisanName || 'Seller' : customerName || 'Buyer',
+    isArtisan ? 'entrepreneur' : 'customer',
+    isArtisan ? customerId || 'user-customer-1' : artisanId || 'user-artisan-1',
+    isArtisan ? customerName || 'Buyer' : artisanName || 'Seller',
+    String(text || '').trim(),
+    ts
+  );
+
+  res.json({
+    chat: {
+      id: `chat-${customerId || 'user-customer-1'}-${productId || 'prod-1'}`,
       customerId: customerId || 'user-customer-1',
-      customerName: customerName || 'Arjun Sharma',
-      customerAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80',
+      customerName: customerName || 'Buyer',
       artisanId: artisanId || 'user-artisan-1',
-      artisanName: artisanName || 'Vedant Mishra',
-      productTitle: productTitle || 'Handcrafted Rural Product',
+      productTitle: productTitle || 'Marketplace Product',
       productId: productId || 'prod-1',
-      unreadByArtisan: sender === 'customer' ? 1 : 0,
-      messages: []
-    };
-    dbCustomerChats.unshift(chat);
-  }
-
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  chat.messages.push({
-    sender: sender || 'customer',
-    text: text || '',
-    time: timeStr
+      unreadByArtisan: 0,
+      messages: [
+        {
+          sender: isArtisan ? 'artisan' : 'customer',
+          text: String(text || '').trim(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]
+    }
   });
-  if (sender === 'customer') {
-    chat.unreadByArtisan += 1;
-  } else {
-    chat.unreadByArtisan = 0;
-  }
-
-  res.json({ chat });
 });
 
-// ==================== PAYOUTS & RECEIVED PAYMENTS ====================
-let dbPayouts = {
+let payoutState = {
   artisanId: 'user-artisan-1',
   artisanName: 'Vedant Mishra',
-  bankName: 'State Bank of India (Varanasi Ghats Branch)',
+  bankName: 'State Bank of India',
   accountNumberMasked: '•••• •••• 4019',
   upiVpa: 'vedantmishra@sbi',
   totalLifetimeEarned: 284500,
@@ -1144,614 +1639,743 @@ let dbPayouts = {
       status: 'SETTLED',
       method: 'Direct UPI Escrow',
       bankRef: 'NPCI-UPI-9928174628'
-    },
-    {
-      id: 'PAY-8840',
-      amount: 18900,
-      date: '2026-09-17',
-      status: 'SETTLED',
-      method: 'Direct UPI Escrow',
-      bankRef: 'NPCI-UPI-3310948211'
-    },
-    {
-      id: 'PAY-8790',
-      amount: 15600,
-      date: '2026-09-10',
-      status: 'SETTLED',
-      method: 'Bank NEFT',
-      bankRef: 'SBIN0029104821'
     }
   ]
 };
 
 app.get('/api/payouts', (_req: Request, res: Response) => {
-  res.json({ payouts: dbPayouts });
+  res.json({ payouts: payoutState });
 });
 
 app.post('/api/payouts/withdraw', (req: Request, res: Response) => {
-  const { amount } = req.body;
-  const withdrawAmount = Number(amount) || dbPayouts.availableBalance;
-  if (withdrawAmount <= 0) {
-    return res.status(400).json({ error: 'No available balance to withdraw' });
+  const withdrawAmount = Number(req.body?.amount) || payoutState.availableBalance;
+  if (withdrawAmount <= 0 || withdrawAmount > payoutState.availableBalance) {
+    return res.status(400).json({ error: 'Invalid or insufficient available balance.' });
   }
-
   const newPayout = {
     id: `PAY-${Math.floor(1000 + Math.random() * 9000)}`,
     amount: withdrawAmount,
     date: new Date().toISOString().split('T')[0],
     status: 'SETTLED',
-    method: 'Instant UPI to ' + dbPayouts.upiVpa,
+    method: `Instant UPI to ${payoutState.upiVpa}`,
     bankRef: `NPCI-UPI-${Math.floor(1000000000 + Math.random() * 9000000000)}`
   };
-
-  dbPayouts.availableBalance = Math.max(0, dbPayouts.availableBalance - withdrawAmount);
-  dbPayouts.recentPayouts.unshift(newPayout);
-
+  payoutState.availableBalance = Math.max(0, payoutState.availableBalance - withdrawAmount);
+  payoutState.recentPayouts.unshift(newPayout);
   res.json({
     success: true,
-    message: `₹${withdrawAmount} instantly transferred to ${dbPayouts.upiVpa}`,
+    message: `₹${withdrawAmount} transferred to ${payoutState.upiVpa}`,
     payout: newPayout,
-    updatedPayouts: dbPayouts
+    updatedPayouts: payoutState
   });
 });
 
-// ==================== ANALYTICS DASHBOARD ====================
 app.get('/api/analytics/overview', (_req: Request, res: Response) => {
-  const totalSales = 284500;
-  const totalOrders = dbOrders.length + 184;
-  const activeCustomers = 142;
-  const growthRate = 24.5;
-
-  const monthlyReports = [
-    { month: 'Apr', revenue: 28000, orders: 24, artisans: 12 },
-    { month: 'May', revenue: 34500, orders: 29, artisans: 16 },
-    { month: 'Jun', revenue: 41200, orders: 36, artisans: 21 },
-    { month: 'Jul', revenue: 52000, orders: 44, artisans: 25 },
-    { month: 'Aug', revenue: 61800, orders: 53, artisans: 28 },
-    { month: 'Sep', revenue: 67000, orders: 58, artisans: 32 }
-  ];
-
-  const categoryPerformance = [
-    { name: 'Textiles & Handloom', sales: 112000, share: 39, growth: '+28%' },
-    { name: 'Organic Spices & Turmeric', sales: 68400, share: 24, growth: '+34%' },
-    { name: 'Terracotta & Pottery', sales: 46200, share: 16, growth: '+18%' },
-    { name: 'Wild Honey & Cold-Pressed Oils', sales: 38900, share: 14, growth: '+21%' },
-    { name: 'Bamboo & Wood Craft', sales: 19000, share: 7, growth: '+15%' }
-  ];
+  const ordStats = db.prepare("SELECT COUNT(*) as cnt, COALESCE(SUM(total_amount),0) as rev FROM orders WHERE order_status != 'cancelled'").get() as any;
+  const prodCount = (db.prepare('SELECT COUNT(*) as cnt FROM products').get() as any).cnt;
+  const projCount = (db.prepare('SELECT COUNT(*) as cnt FROM projects').get() as any).cnt;
+  const schemeCount = (db.prepare('SELECT COUNT(*) as cnt FROM government_schemes').get() as any).cnt;
 
   res.json({
     kpis: {
-      totalSales,
-      totalOrders,
-      activeCustomers,
-      growthRate,
-      averageOrderValue: Math.round(totalSales / totalOrders),
-      onTimeDeliveryRate: 99.2,
+      totalSales: ordStats.rev || 0,
+      totalOrders: ordStats.cnt || 0,
+      activeProducts: prodCount,
+      activeProjects: projCount,
+      activeSchemes: schemeCount,
+      activeCustomers: (db.prepare("SELECT COUNT(*) as cnt FROM users WHERE role='customer'").get() as any).cnt,
+      growthRate: 18.4,
+      averageOrderValue: ordStats.cnt ? Math.round(ordStats.rev / ordStats.cnt) : 0,
+      onTimeDeliveryRate: 98.5,
       artisanFairCutAverage: '86%'
     },
-    monthlyReports,
-    categoryPerformance
+    monthlyReports: [
+      { month: 'May', revenue: 34500, orders: 14, artisans: 8 },
+      { month: 'Jun', revenue: 41200, orders: 18, artisans: 11 },
+      { month: 'Jul', revenue: 52000, orders: 22, artisans: 14 },
+      { month: 'Aug', revenue: 61800, orders: 26, artisans: 16 },
+      { month: 'Sep', revenue: 67000, orders: 29, artisans: 19 },
+      { month: 'Oct', revenue: ordStats.rev || 71500, orders: ordStats.cnt || 31, artisans: 21 }
+    ],
+    categoryPerformance: [
+      { name: 'Handloom Textiles', sales: 112000, share: 39, growth: '+24%' },
+      { name: 'Organic Spices & Turmeric', sales: 68400, share: 24, growth: '+31%' },
+      { name: 'Terracotta & Pottery', sales: 46200, share: 16, growth: '+18%' },
+      { name: 'Honey & Cold-Pressed Oils', sales: 38900, share: 14, growth: '+20%' },
+      { name: 'Bamboo & Wood Craft', sales: 19000, share: 7, growth: '+14%' }
+    ]
   });
 });
 
-// ==================== GEMINI AI ENDPOINTS ====================
-// 1. AI Business Assistant Chat (Gram Sahayak AI)
-app.post('/api/ai/chat', async (req: Request, res: Response) => {
-  const { message, history, language = 'English', role = 'entrepreneur' } = req.body;
+// ==================== STRICT RBAC ADMIN ENDPOINTS ====================
+app.get('/api/admin/users', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const search = normalizeQuery(String(req.query.search || ''));
+  const status = String(req.query.status || 'all');
+  const role = String(req.query.role || 'all');
+  const loginType = String(req.query.loginType || 'all');
 
-  try {
-    const systemPrompt = `You are "Gram Sahayak AI" (ग्राम सहायक), an expert business advisor, market intelligence copilot, and mentor dedicated to rural Indian entrepreneurs, village self-help groups (SHGs), traditional craftspeople, and organic farmers.
-Your tone is deeply respectful, warm, encouraging, practical, and grounded in rural realities.
-You provide clear, actionable business advice covering:
-1. Pricing handmade & agricultural products (accounting for raw materials, manual labor hours, fair profit margins).
-2. Packaging fragile craft items (terracotta, glass, textiles) using low-cost eco-friendly farm waste like banana fibre or rice husks.
-3. Logistics and inter-state dispatch tips through India Post Rural Nodal & Gram Express.
-4. Government schemes in India (PM Vishwakarma, PM Mudra, NABARD SHG-Bank Linkage, Stand-Up India, FSSAI registration, GI Tagging).
-5. Festive marketing strategies (Diwali, Pongal, Durga Puja, Rakhi) and social commerce selling (WhatsApp catalogs).
-6. Explaining financial terms (escrow, zero MDR UPI, working capital) in simple, accessible language.
-
-Language requirement: Provide your main response in ${language}. If requested in Hindi, use natural, conversational Hindi with clear Roman/Devanagari explanations.
-Always include 2-3 specific, actionable steps the artisan can take today.`;
-
-    let conversationText = '';
-    if (Array.isArray(history)) {
-      conversationText = history.slice(-6).map((h: any) => `${h.sender === 'user' ? 'Artisan' : 'Gram Sahayak'}: ${h.text}`).join('\n');
-    }
-
-    const fullPrompt = `${conversationText ? conversationText + '\n' : ''}Artisan question: "${message}"\n\nPlease answer concisely and practically.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: fullPrompt,
-      config: {
-        systemInstruction: systemPrompt,
-        temperature: 0.7,
-      }
-    });
-
-    res.json({
-      reply: response.text || 'Namaste! I am here to help you grow your village enterprise with fair prices, safe shipping, and direct customers.'
-    });
-  } catch (error: any) {
-    console.error('Gemini chat error:', error);
-    res.status(500).json({
-      error: 'AI service unavailable right now.',
-      reply: `Namaste! Here is a proven recommendation: For rural crafts, calculate price as (Raw materials + ₹80/hr labor + 25% profit margin). Also, utilize PM Vishwakarma toolkit subsidies for modern equipment!`
-    });
-  }
-});
-
-// 2. AI Product Description Generator
-app.post('/api/ai/generate-description', async (req: Request, res: Response) => {
-  const { title, category, materials, artisanLocation, language = 'English' } = req.body;
-
-  try {
-    const prompt = `Craft a compelling, authentic e-commerce product description for a rural artisan/farmer product:
-Product: ${title}
-Category: ${category}
-Materials/Ingredients: ${materials}
-Village Origin: ${artisanLocation}
-Target Audience: Urban conscious buyers seeking 100% authentic, ethical, handmade/organic goods.
-
-Return response in valid JSON with these keys:
-- "catchyTitle": an elegant title celebrating origin and authenticity
-- "story": a warm, vivid 2-3 sentence artisan provenance story highlighting cultural heritage and positive village impact
-- "features": array of 4 bullet points (e.g. natural dyes, non-toxic, handmade by SHG)
-- "suggestedPrice": realistic recommended price in INR (number)
-- "fairTradeNote": transparent explanation of why this pricing is ethical and how 85%+ reaches the producer directly.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: 'You are an ethical e-commerce copywriter celebrating Indian rural crafts and organic farming.',
-        responseMimeType: 'application/json'
-      }
-    });
-
-    const parsed = JSON.parse(response.text || '{}');
-    res.json(parsed);
-  } catch (err: any) {
-    console.error('AI description error:', err);
-    res.json({
-      catchyTitle: `Authentic Handcrafted ${title}`,
-      story: `Lovingly handcrafted in ${artisanLocation || 'rural India'} using generational techniques passed down through families. Every purchase directly sustains village self-help groups with zero middleman deductions.`,
-      features: [
-        '100% genuine natural origin and ethical labor',
-        'Directly inspected and stamped at Gram AI village hub',
-        'Eco-friendly biodegradable packaging',
-        'Fair-trade verified directly to artisan account'
-      ],
-      suggestedPrice: 850,
-      fairTradeNote: '86% of this sale goes directly into the artisan SHG bank account via instant UPI.'
-    });
-  }
-});
-
-// 3. AI Daily Business Tips
-app.post('/api/ai/business-tips', async (req: Request, res: Response) => {
-  const { category = 'textiles', season = 'Festive Autumn' } = req.body;
-
-  try {
-    const prompt = `Give 3 timely, high-impact business tips for a rural Indian artisan selling ${category} during the current season (${season}).
-Focus on practical advice:
-1. Demand trends in metros (e.g. natural dyes, corporate gifting, sustainable packaging)
-2. Stock preparation & packaging advice
-3. How to take high-quality mobile photos under natural morning sunlight to sell faster.
-
-Keep it crisp, actionable, and formatted cleanly.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: 'You are a rural business growth mentor.'
-      }
-    });
-
-    res.json({ tips: response.text });
-  } catch (err) {
-    res.json({
-      tips: `1. **Festive Corporate Gifting:** Metro companies are ordering sustainable craft hampers. Bundle small items together for higher order value.\n2. **Natural Sunlight Photography:** Take product photos outside between 8 AM and 10 AM on a plain white khadi cloth to show true natural colors.\n3. **Early Stock Buffer:** Ship fragile items to the district hub at least 5 days before peak festival rush to avoid courier delays.`
-    });
-  }
-});
-
-// 4. Global App Voice Assistant (Answers ANY query related to Gram AI and triggers voice + app actions)
-app.post('/api/ai/app-voice-assistant', async (req: Request, res: Response) => {
-  const { query, language = 'English', currentTab = 'landing' } = req.body;
-
-  try {
-    const productsSummary = dbProducts.slice(0, 10).map(p => `${p.title} (₹${p.price}, ${p.artisanLocation})`).join(', ');
-
-    const systemPrompt = `You are "Gram AI Voice Copilot", the voice assistant for the Gram AI web application.
-Your mission is to answer ANY user question regarding the app, products, orders, payments, logistics, artisan onboarding, and features in a friendly, conversational spoken tone (ready for audio reading).
-
-Key App Knowledge:
-1. Marketplace: Features 100% authentic rural Indian crafts and organic produce. Users can search or discover ANY product in India. Current samples: ${productsSummary}.
-2. Instant UPI Escrow: Direct payments via GPay, PhonePe, Paytm, BHIM. 86%+ goes directly to the village producer's bank account with zero middleman deductions.
-3. Gram Express Logistics: Relays parcels from village SHGs via 150,000+ India Post rural branch offices. Customers receive live GPS tracking and a delivery OTP (sample tracking: GRAM-88219).
-4. Entrepreneur Dashboard: Artisans track sales, fulfill orders, generate product stories using Gemini, and see monthly revenue charts.
-5. Learning Hub (Gram Vidyapeeth): Multilingual lessons on eco-packaging, PM Vishwakarma ₹3 Lakh subsidy loans, and digital bookkeeping.
-6. Support: Toll-free 1800-419-GRAM, WhatsApp (+91 94310 44521), and direct ticket raising with village coordinators.
-
-Response Format Requirements:
-Return valid JSON with:
-- "reply": A natural, concise, spoken voice answer (2-4 sentences max, friendly and helpful, easy to listen to).
-- "action": optional object if the query requests navigation or searching.
-  - type: one of "navigate" | "search_product" | "track_order" | "open_cart" | null
-  - target:
-    - for "navigate": "marketplace" | "dashboard" | "customer" | "logistics" | "learning" | "ai-assistant" | "support"
-    - for "search_product": the search keyword (e.g. "saffron", "pottery", "saree")
-    - for "track_order": the tracking ID (e.g. "GRAM-88219")
-- "suggestedQueries": array of 3 short follow-up questions the user can tap or speak.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: `User query: "${query}" (Language: ${language}, Current screen: ${currentTab})`,
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: 'application/json'
-      }
-    });
-
-    const parsed = JSON.parse(response.text || '{}');
-    res.json(parsed);
-  } catch (err: any) {
-    console.error('App voice assistant error:', err);
-    res.json({
-      reply: `Gram AI connects village producers directly with conscious buyers. You can shop authentic rural goods, track orders like GRAM-88219, or access the artisan dashboard to manage your sales!`,
-      action: { type: 'navigate', target: 'marketplace' },
-      suggestedQueries: ['How do I buy with UPI?', 'Track order GRAM-88219', 'Show me organic spices']
-    });
-  }
-});
-
-// ==================== UNIVERSAL MULTI-LANGUAGE AUDIO VOICE TRANSLATOR ====================
-// Allows listening to ANY lesson, answer, or text in ANY language requested by user
-const LINGUISTIC_FALLBACK_DICTIONARY: Record<string, (text: string) => string> = {
-  'hi-IN': (t) => `नमस्ते! ग्राम एआई में आपका स्वागत है। ${t}`,
-  'mr-IN': (t) => `नमस्कार! ग्राम एआय मध्ये आपले स्वागत आहे। ${t}`,
-  'bn-IN': (t) => `নমস্কার! গ্রাম এআই-তে আপনাকে স্বাগতম। ${t}`,
-  'ta-IN': (t) => `வணக்கம்! கிராம் ஏஐ-க்கு வரவேற்கிறோம். ${t}`,
-  'te-IN': (t) => `నమస్కారం! గ్రామ్ ఏఐ కి స్వాగతం. ${t}`,
-  'gu-IN': (t) => `નમસ્તે! ગ્રામ એઆઈ માં આપનું સ્વાગત છે. ${t}`,
-  'kn-IN': (t) => `ನಮಸ್ಕಾರ! ಗ್ರಾಮ್ ಎಐ ಗೆ ಸುಸ್ವಾಗತ. ${t}`,
-  'ml-IN': (t) => `നമസ്കാരം! ഗ്രാം എഐയിലേക്ക് സ്വാഗതം. ${t}`,
-  'pa-IN': (t) => `ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਗ੍ਰਾਮ ਏਆਈ ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ। ${t}`,
-  'es-ES': (t) => `¡Hola! Bienvenido a Gram AI. ${t}`,
-  'fr-FR': (t) => `Bonjour! Bienvenue sur Gram AI. ${t}`,
-  'de-DE': (t) => `Hallo! Willkommen bei Gram AI. ${t}`,
-  'ja-JP': (t) => `こんにちは！グラムAIへようこそ。 ${t}`,
-  'en-IN': (t) => t,
-  'en-US': (t) => t
-};
-
-app.post('/api/voice/speak-in-language', async (req: Request, res: Response) => {
-  const { text, targetLanguage = 'Hindi', languageCode = 'hi-IN' } = req.body;
-
-  if (!text) {
-    return res.status(400).json({ error: 'Text is required for speech synthesis' });
-  }
-
-  // If both code is en and targetLanguage is English, return directly
-  const isTargetEnglish = targetLanguage.toLowerCase().includes('english');
-  if (languageCode.startsWith('en') && isTargetEnglish) {
-    return res.json({
-      translatedText: text,
-      spokenAudioScript: text,
-      languageCode: 'en-US',
-      targetLanguage: 'English'
-    });
-  }
-
-  try {
-    const prompt = `You are a professional audio translator and multilingual narrator.
-Translate the following text into natural, spoken ${targetLanguage} suitable for text-to-speech voice pronunciation.
-Text to translate:
-"${text}"
-
-Return a valid JSON object with:
-- "translatedText": the natural translation written in the official script of ${targetLanguage}
-- "bcp47Code": the most appropriate BCP-47 language tag for speech synthesis (e.g. "hi-IN", "mr-IN", "es-ES", "ar-SA", "ru-RU", "ja-JP", "de-DE", etc.)`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
-    });
-
-    const parsed = JSON.parse(response.text || '{}');
-    const translated = parsed.translatedText || text;
-    const finalCode = parsed.bcp47Code || (languageCode !== 'custom' ? languageCode : 'en-US');
-
-    res.json({
-      translatedText: translated,
-      spokenAudioScript: translated,
-      languageCode: finalCode,
-      targetLanguage
-    });
-  } catch (err) {
-    // Graceful dictionary fallback if quota or offline
-    const fallbackFn = LINGUISTIC_FALLBACK_DICTIONARY[languageCode] || ((t: string) => t);
-    const fallbackText = fallbackFn(text);
-    res.json({
-      translatedText: fallbackText,
-      spokenAudioScript: fallbackText,
-      languageCode: languageCode !== 'custom' ? languageCode : 'hi-IN',
-      targetLanguage
-    });
-  }
-});
-
-// ==================== CS ENGINEERING CORE (AOA, DBMS, MATHS, OOP) BLUEPRINT ====================
-app.get('/api/engineering-core', (_req: Request, res: Response) => {
-  res.json({
-    architect: 'Vedant Mishra (Founder & Lead Systems Engineer)',
-    systemOverview: 'Gram AI is engineered upon fundamental Computer Science & Mathematics disciplines to provide high-throughput, fault-tolerant rural commerce with provable algorithmic guarantees.',
-    subjects: {
-      aoa: {
-        code: 'AOA',
-        name: 'Analysis of Algorithms',
-        lead: 'Vedant Mishra',
-        topics: [
-          {
-            title: 'Dijkstra Shortest Path for Rural Hub Relays',
-            complexity: 'O((V + E) log V)',
-            description: 'Computes optimal multi-hop consignment transit across 154,000+ India Post village branch post offices and district sorting centers using min-priority queues (Fibonacci Heap).'
-          },
-          {
-            title: '0/1 Knapsack Dynamic Programming for Vehicle Stacking',
-            complexity: 'O(N · W)',
-            description: 'Optimizes consignment loading into electric dispatch vans where parcel values are maximized under maximum freight payload constraints (W = 1200kg).'
-          },
-          {
-            title: 'Inverted Index & Sub-Millisecond Search',
-            complexity: 'O(log N + k)',
-            description: 'B-tree backed multi-keyword index for real-time GI craft discovery across states and artisans.'
-          }
-        ]
-      },
-      dbms: {
-        code: 'DBMS',
-        name: 'Database Management Systems',
-        lead: 'Vedant Mishra',
-        topics: [
-          {
-            title: 'ACID Transactions in UPI Escrow Engine',
-            guarantee: 'Atomicity, Consistency, Isolation, Durability',
-            description: 'Guarantees zero fund loss between customer bank debits, escrow holding accounts, and artisan UPI payouts using Two-Phase Commit and Write-Ahead Logging (WAL).'
-          },
-          {
-            title: 'Third Normal Form (3NF) Relational Schemas',
-            guarantee: 'Zero Update / Insertion / Deletion Anomalies',
-            description: 'Strict schema decomposition: Users, Artisans, Products, Orders, EscrowLedgers, ConsignmentRelays, and VerifiedReviews in lossless joins.'
-          },
-          {
-            title: 'B+ Tree Indexing & Concurrency Control',
-            guarantee: 'Multi-Version Concurrency Control (MVCC)',
-            description: 'Clustered indices on Primary Keys and composite indices on (category, price, stock) ensuring sub-2ms query response times under high read load.'
-          }
-        ]
-      },
-      maths: {
-        code: 'MATHS',
-        name: 'Discrete Mathematics & Applied Calculus',
-        lead: 'Vedant Mishra',
-        topics: [
-          {
-            title: 'Graph Theory & Transit Adjacency Matrices',
-            foundation: 'G = (V, E) Weighted Directed Acyclic Graphs',
-            description: 'Formulates national postal logistics as a directed graph where adjacency matrix powers A^k compute k-hop reachable village hubs for guaranteed 48-hour delivery.'
-          },
-          {
-            title: 'Markov Decision Chains for Consignment Lifecycle',
-            foundation: 'Transition Probability Matrix P[S_j | S_i]',
-            description: 'Models order states (Placed → Packed → Dispatched → InTransit → OutForDelivery → Delivered) as a discrete stochastic process with absorbing final state.'
-          },
-          {
-            title: 'Linear Algebra & Sales Forecast Vectors',
-            foundation: 'Multivariate Linear Regression Y = Xβ + ε',
-            description: 'Predicts seasonal festival sales surges for Madhubani silk, terracotta handis, and Wayanad spices using quarterly demand regression vectors.'
-          }
-        ]
-      },
-      oop: {
-        code: 'OOP',
-        name: 'Object-Oriented Programming & Design Patterns',
-        lead: 'Vedant Mishra',
-        topics: [
-          {
-            title: 'SOLID Architectural Principles',
-            principles: ['Single Responsibility', 'Open-Closed', 'Liskov Substitution', 'Interface Segregation', 'Dependency Inversion'],
-            description: 'Strict separation between Order Processing, UPI Escrow Settlement, and Notification Services to allow independent scaling and automated unit testing.'
-          },
-          {
-            title: 'Strategy Pattern for Polymorphic Payment Gateways',
-            pattern: 'GoF Strategy Pattern',
-            description: 'UpiPaymentStrategy, NetBankingStrategy, and DirectEscrowStrategy implement a unified IPaymentProcessor interface with dynamic runtime injection.'
-          },
-          {
-            title: 'State Pattern for Consignment Lifecycle',
-            pattern: 'GoF State Pattern',
-            description: 'Encapsulates order status transitions (PlacedState, PackedState, DispatchedState, DeliveredState) preventing invalid lifecycle transitions.'
-          }
-        ]
-      }
-    }
-  });
-});
-
-// ==================== ADMIN OPERATIONS & USER MANAGEMENT ====================
-app.get('/api/admin/users', (req: Request, res: Response) => {
-  const { search, status, role, loginType } = req.query;
-  let results = [...dbUsers];
-
-  if (search && typeof search === 'string') {
-    const q = search.toLowerCase();
-    results = results.filter(u => 
-      u.name.toLowerCase().includes(q) || 
-      u.email.toLowerCase().includes(q) ||
-      u.phone.toLowerCase().includes(q)
-    );
-  }
-
-  if (status && status !== 'all') {
-    results = results.filter(u => u.accountStatus === status);
-  }
-
-  if (role && role !== 'all') {
-    results = results.filter(u => u.role === role);
-  }
-
-  if (loginType && loginType !== 'all') {
-    results = results.filter(u => u.lastLoginType === loginType);
-  }
+  const allRows = db.prepare('SELECT * FROM users ORDER BY joined_date DESC').all() as any[];
+  const allUsers = allRows.map(mapUserRow);
 
   const stats = {
-    totalUsers: dbUsers.length,
-    activeSessions: dbUsers.filter(u => u.lastLoginType === 'recent').length,
-    neverLoggedInCount: dbUsers.filter(u => u.lastLoginType === 'never').length,
-    unknownLoginCount: dbUsers.filter(u => u.lastLoginType === 'unknown').length,
-    inactiveCount: dbUsers.filter(u => u.lastLoginType === 'inactive').length,
-    suspendedCount: dbUsers.filter(u => u.accountStatus === 'suspended').length
+    totalUsers: allUsers.length,
+    activeSessions: allUsers.filter(u => u.lastLoginType === 'recent' && u.accountStatus === 'active').length,
+    neverLoggedInCount: allUsers.filter(u => u.lastLoginType === 'never').length,
+    unknownLoginCount: allUsers.filter(u => u.lastLoginType === 'unknown').length,
+    inactiveCount: allUsers.filter(u => u.lastLoginType === 'inactive').length,
+    suspendedCount: allUsers.filter(u => u.accountStatus === 'suspended').length
   };
 
-  res.json({ users: results, stats });
-});
-
-app.post('/api/admin/users/:id/status', (req: Request, res: Response) => {
-  const user = dbUsers.find(u => u.id === req.params.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-
-  const { status, reason, adminName = 'Pooja Venkatesh (Admin)' } = req.body;
-  if (status !== 'active' && status !== 'suspended' && status !== 'pending') {
-    return res.status(400).json({ error: 'Invalid account status' });
+  let filtered = allUsers;
+  if (search) {
+    filtered = filtered.filter(
+      u =>
+        u.name.toLowerCase().includes(search) ||
+        u.email.toLowerCase().includes(search) ||
+        u.phone.toLowerCase().includes(search)
+    );
   }
+  if (status !== 'all') filtered = filtered.filter(u => u.accountStatus === status);
+  if (role !== 'all') filtered = filtered.filter(u => u.role === role);
+  if (loginType !== 'all') filtered = filtered.filter(u => u.lastLoginType === loginType);
 
-  const prevStatus = user.accountStatus;
-  user.accountStatus = status;
-
-  user.suspensionAuditTrail.unshift({
-    action: status === 'suspended' ? 'suspend' : 'reactivate',
-    byAdmin: adminName,
-    reason: reason || `Admin updated status from ${prevStatus} to ${status}.`,
-    timestamp: new Date().toISOString()
-  });
-
-  res.json({ success: true, user, message: `Account status updated to ${status}.` });
+  res.json({ users: filtered, stats });
 });
 
-// Admin Product Moderation
-app.get('/api/admin/moderation', (_req: Request, res: Response) => {
-  const reportedProducts = dbProducts.filter(p => p.moderationStatus === 'reported' || p.moderationStatus === 'pending');
-  const flaggedReviews = dbReviews.filter(r => r.reported);
+app.post('/api/admin/users/:id/status', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'User not found.' });
 
+  const nextStatus = req.body?.status === 'suspended' ? 'suspended' : 'active';
+  const reason = String(req.body?.reason || (nextStatus === 'suspended' ? 'Administrative suspension.' : 'Account reactivated.'));
+  const byAdmin = String(req.body?.adminName || req.authUser!.name);
+  const action = nextStatus === 'suspended' ? 'suspend' : 'reactivate';
+
+  db.prepare('UPDATE users SET account_status = ? WHERE id = ?').run(nextStatus, row.id);
+  db.prepare('INSERT INTO user_audit_trail (user_id, action, by_admin, reason, timestamp) VALUES (?, ?, ?, ?, ?)').run(
+    row.id,
+    action,
+    byAdmin,
+    reason,
+    new Date().toISOString()
+  );
+
+  const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(row.id) as any;
+  res.json({ success: true, user: mapUserRow(updated) });
+});
+
+app.get('/api/admin/moderation', authenticate, requireAdmin, (_req: AuthenticatedRequest, res: Response) => {
+  const prodRows = db.prepare("SELECT * FROM products WHERE moderation_status = 'reported' OR moderation_status = 'paused'").all() as any[];
+  const revRows = db.prepare('SELECT * FROM product_reviews WHERE reported = 1').all() as any[];
   res.json({
-    reportedProducts,
-    flaggedReviews,
-    stats: {
-      pendingProductsCount: reportedProducts.length,
-      flaggedReviewsCount: flaggedReviews.length
-    }
+    reportedProducts: prodRows.map(mapProductRow),
+    flaggedReviews: revRows.map(mapReviewRow)
   });
 });
 
-app.post('/api/admin/products/:id/moderate', (req: Request, res: Response) => {
-  const prod = dbProducts.find(p => p.id === req.params.id);
-  if (!prod) return res.status(404).json({ error: 'Product not found' });
+app.post('/api/admin/products/:id/moderate', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Product not found.' });
 
-  const { action, reason } = req.body; // 'approve' | 'pause' | 'delete'
-  if (action === 'approve') {
-    prod.moderationStatus = 'approved';
-    prod.reportedReason = undefined;
-  } else if (action === 'pause') {
-    prod.moderationStatus = 'paused';
-    prod.reportedReason = reason || 'Temporarily paused by admin for verification.';
-  } else if (action === 'delete') {
-    dbProducts = dbProducts.filter(p => p.id !== prod.id);
-    return res.json({ success: true, message: 'Listing permanently removed by admin.' });
-  }
-
-  res.json({ success: true, product: prod, message: `Product moderation action "${action}" applied.` });
-});
-
-app.post('/api/admin/reviews/:id/moderate', (req: Request, res: Response) => {
-  const rev = dbReviews.find(r => r.id === req.params.id);
-  if (!rev) return res.status(404).json({ error: 'Review not found' });
-
-  const { action } = req.body; // 'keep' | 'delete'
+  const action = req.body?.action;
   if (action === 'delete') {
-    dbReviews = dbReviews.filter(r => r.id !== rev.id);
+    db.prepare('DELETE FROM products WHERE id = ?').run(row.id);
+    return res.json({ success: true, message: 'Product listing removed.' });
+  }
+  if (action === 'pause') {
+    db.prepare("UPDATE products SET moderation_status = 'paused', in_stock = 0 WHERE id = ?").run(row.id);
+    return res.json({ success: true, message: 'Listing paused.' });
+  }
+  db.prepare("UPDATE products SET moderation_status = 'approved', reported_reason = NULL WHERE id = ?").run(row.id);
+  res.json({ success: true, message: 'Listing approved.' });
+});
+
+app.post('/api/admin/reviews/:id/moderate', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const row = db.prepare('SELECT * FROM product_reviews WHERE id = ?').get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: 'Review not found.' });
+
+  if (req.body?.action === 'delete') {
+    db.prepare('DELETE FROM product_reviews WHERE id = ?').run(row.id);
     return res.json({ success: true, message: 'Flagged review deleted.' });
-  } else {
-    rev.reported = false;
-    rev.reportReason = undefined;
-    return res.json({ success: true, review: rev, message: 'Review cleared and retained.' });
   }
+  db.prepare('UPDATE product_reviews SET reported = 0, report_reason = NULL WHERE id = ?').run(row.id);
+  res.json({ success: true, message: 'Review flag cleared.' });
 });
 
-// ==================== BUYER-SELLER MESSAGING ====================
-app.get('/api/messages', (req: Request, res: Response) => {
-  const { userId, productId } = req.query;
-  let results = [...dbMessages];
-  if (userId) {
-    results = results.filter(m => m.senderId === userId || m.recipientId === userId);
+// Admin Projects CRUD
+app.post('/api/admin/projects', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const b = req.body || {};
+  const name = String(b.name || '').trim();
+  const description = String(b.description || '').trim();
+  if (!name || !description) {
+    return res.status(400).json({ error: 'Project name and description are required.' });
   }
-  if (productId) {
-    results = results.filter(m => m.productId === productId);
-  }
-  res.json({ messages: results });
+
+  const id = String(b.id || `proj-${Date.now()}`);
+  const slug = String(b.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString().slice(-4));
+  const nowIso = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO projects (
+      id, slug, name, category, industry, business_type, location_suitability,
+      image_url, description, keywords_json, required_investment, estimated_setup_cost,
+      cost_assumptions, estimated_monthly_revenue_range, required_resources_json,
+      target_customers, revenue_model, required_skills_json, benefits_json,
+      challenges_json, related_scheme_ids_json, reference_links_json,
+      implementation_details_json, status, verified_source, last_verified_date,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    slug,
+    name,
+    String(b.category || 'small_business'),
+    String(b.industry || 'General Enterprise'),
+    String(b.businessType || 'Small Business Unit'),
+    String(b.locationSuitability || 'Pan-India Rural & Semi-Urban'),
+    String(b.imageUrl || '/images/project_spice_unit.jpg'),
+    description,
+    JSON.stringify(Array.isArray(b.keywords) ? b.keywords : []),
+    String(b.requiredInvestment || 'Estimate unavailable — verify locally'),
+    String(b.estimatedSetupCost || 'Estimate pending assessment'),
+    String(b.costAssumptions || 'Illustrative regional estimate; actual costs vary by district, equipment vendor, and capacity.'),
+    String(b.estimatedMonthlyRevenueRange || 'Varies by market demand & utilization'),
+    JSON.stringify(Array.isArray(b.requiredResources) ? b.requiredResources : []),
+    String(b.targetCustomers || 'Local & regional buyers'),
+    String(b.revenueModel || 'Direct retail & B2B supply'),
+    JSON.stringify(Array.isArray(b.requiredSkills) ? b.requiredSkills : []),
+    JSON.stringify(Array.isArray(b.benefits) ? b.benefits : []),
+    JSON.stringify(Array.isArray(b.challenges) ? b.challenges : []),
+    JSON.stringify(Array.isArray(b.relatedSchemeIds) ? b.relatedSchemeIds : []),
+    JSON.stringify(Array.isArray(b.referenceLinks) ? b.referenceLinks : []),
+    b.implementationDetails ? JSON.stringify(b.implementationDetails) : null,
+    b.status === 'draft' || b.status === 'archived' ? b.status : 'verified',
+    String(b.verifiedSource || 'GramSetu Admin Directory'),
+    nowIso.split('T')[0],
+    nowIso,
+    nowIso
+  );
+
+  const created = db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as any;
+  res.status(201).json({ project: mapProjectRow(created) });
 });
 
-app.post('/api/messages', (req: Request, res: Response) => {
-  const { productId, productTitle, senderId, senderName, senderRole, recipientId, recipientName, text } = req.body;
-  if (!text || !text.trim()) {
-    return res.status(400).json({ error: 'Message text required' });
+app.put('/api/admin/projects/:id', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id) as any;
+  if (!existing) return res.status(404).json({ error: 'Project not found.' });
+  const b = req.body || {};
+
+  db.prepare(`
+    UPDATE projects
+    SET name = ?, category = ?, industry = ?, business_type = ?, location_suitability = ?,
+        image_url = ?, description = ?, keywords_json = ?, required_investment = ?,
+        estimated_setup_cost = ?, cost_assumptions = ?, estimated_monthly_revenue_range = ?,
+        required_resources_json = ?, target_customers = ?, revenue_model = ?,
+        required_skills_json = ?, benefits_json = ?, challenges_json = ?,
+        related_scheme_ids_json = ?, reference_links_json = ?, implementation_details_json = ?,
+        status = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    b.name ?? existing.name,
+    b.category ?? existing.category,
+    b.industry ?? existing.industry,
+    b.businessType ?? existing.business_type,
+    b.locationSuitability ?? existing.location_suitability,
+    b.imageUrl ?? existing.image_url,
+    b.description ?? existing.description,
+    b.keywords ? JSON.stringify(b.keywords) : existing.keywords_json,
+    b.requiredInvestment ?? existing.required_investment,
+    b.estimatedSetupCost ?? existing.estimated_setup_cost,
+    b.costAssumptions ?? existing.cost_assumptions,
+    b.estimatedMonthlyRevenueRange ?? existing.estimated_monthly_revenue_range,
+    b.requiredResources ? JSON.stringify(b.requiredResources) : existing.required_resources_json,
+    b.targetCustomers ?? existing.target_customers,
+    b.revenueModel ?? existing.revenue_model,
+    b.requiredSkills ? JSON.stringify(b.requiredSkills) : existing.required_skills_json,
+    b.benefits ? JSON.stringify(b.benefits) : existing.benefits_json,
+    b.challenges ? JSON.stringify(b.challenges) : existing.challenges_json,
+    b.relatedSchemeIds ? JSON.stringify(b.relatedSchemeIds) : existing.related_scheme_ids_json,
+    b.referenceLinks ? JSON.stringify(b.referenceLinks) : existing.reference_links_json,
+    b.implementationDetails !== undefined ? (b.implementationDetails ? JSON.stringify(b.implementationDetails) : null) : existing.implementation_details_json,
+    b.status ?? existing.status,
+    new Date().toISOString(),
+    req.params.id
+  );
+
+  const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id) as any;
+  res.json({ project: mapProjectRow(updated) });
+});
+
+app.delete('/api/admin/projects/:id', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const existing = db.prepare('SELECT id FROM projects WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Project not found.' });
+  db.prepare('DELETE FROM projects WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// Admin Government Schemes CRUD
+app.post('/api/admin/schemes', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const b = req.body || {};
+  const name = String(b.name || '').trim();
+  const ministry = String(b.ministry || '').trim();
+  if (!name || !ministry) {
+    return res.status(400).json({ error: 'Scheme name and ministry/authority are required.' });
+  }
+  const id = String(b.id || `scheme-${Date.now()}`);
+  const nowIso = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO government_schemes (
+      id, name, tagline, ministry, level, state, category, scheme_type, eligibility_target,
+      description, purpose_benefits_json, eligibility_criteria_json, documents_json,
+      application_process_json, financial_assistance, max_loan_amount, loan_display, tranches,
+      interest_rate, interest_subvention, subsidy_grant, collateral, deadline, status,
+      official_url, official_source, last_verified_date, badge, eligible_trades_json,
+      processing_time, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    name,
+    String(b.tagline || ''),
+    ministry,
+    b.level === 'state' ? 'state' : 'central',
+    String(b.state || 'All India'),
+    String(b.category || 'capital_subsidies'),
+    String(b.schemeType || 'Subsidy'),
+    String(b.eligibilityTarget || 'Verify eligibility on official portal'),
+    String(b.description || ''),
+    JSON.stringify(Array.isArray(b.purposeBenefits) ? b.purposeBenefits : []),
+    JSON.stringify(Array.isArray(b.eligibilityCriteria) ? b.eligibilityCriteria : []),
+    JSON.stringify(Array.isArray(b.documents) ? b.documents : ['Aadhaar Card', 'Bank Passbook']),
+    JSON.stringify(Array.isArray(b.applicationProcess) ? b.applicationProcess : ['Apply via official portal']),
+    String(b.financialAssistance || ''),
+    Number(b.maxLoanAmount) || 0,
+    String(b.loanDisplay || 'Check official portal'),
+    String(b.tranches || 'As per official norms'),
+    String(b.interestRate || 'As per scheme guidelines'),
+    String(b.interestSubvention || 'Applicable as notified'),
+    String(b.subsidyGrant || b.financialAssistance || ''),
+    String(b.collateral || 'Refer to scheme guidelines'),
+    String(b.deadline || 'Ongoing — verify on official portal'),
+    ['active', 'upcoming', 'expired'].includes(b.status) ? b.status : 'active',
+    String(b.officialUrl || ''),
+    String(b.officialSource || ministry),
+    String(b.lastVerifiedDate || nowIso.split('T')[0]),
+    String(b.badge || 'Verified Scheme'),
+    JSON.stringify(Array.isArray(b.eligibleTrades) ? b.eligibleTrades : []),
+    String(b.processingTime || 'Subject to verification'),
+    nowIso
+  );
+
+  const created = db.prepare('SELECT * FROM government_schemes WHERE id = ?').get(id) as any;
+  res.status(201).json({ scheme: mapSchemeRow(created) });
+});
+
+app.put('/api/admin/schemes/:id', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const existing = db.prepare('SELECT * FROM government_schemes WHERE id = ?').get(req.params.id) as any;
+  if (!existing) return res.status(404).json({ error: 'Scheme not found.' });
+  const b = req.body || {};
+
+  db.prepare(`
+    UPDATE government_schemes
+    SET name = ?, tagline = ?, ministry = ?, level = ?, state = ?, category = ?, scheme_type = ?,
+        description = ?, financial_assistance = ?, loan_display = ?, subsidy_grant = ?,
+        deadline = ?, status = ?, official_url = ?, official_source = ?, last_verified_date = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    b.name ?? existing.name,
+    b.tagline ?? existing.tagline,
+    b.ministry ?? existing.ministry,
+    b.level ?? existing.level,
+    b.state ?? existing.state,
+    b.category ?? existing.category,
+    b.schemeType ?? existing.scheme_type,
+    b.description ?? existing.description,
+    b.financialAssistance ?? existing.financial_assistance,
+    b.loanDisplay ?? existing.loan_display,
+    b.subsidyGrant ?? existing.subsidy_grant,
+    b.deadline ?? existing.deadline,
+    b.status ?? existing.status,
+    b.officialUrl ?? existing.official_url,
+    b.officialSource ?? existing.official_source,
+    b.lastVerifiedDate ?? existing.last_verified_date,
+    new Date().toISOString(),
+    req.params.id
+  );
+
+  const updated = db.prepare('SELECT * FROM government_schemes WHERE id = ?').get(req.params.id) as any;
+  res.json({ scheme: mapSchemeRow(updated) });
+});
+
+app.delete('/api/admin/schemes/:id', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const existing = db.prepare('SELECT id FROM government_schemes WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Scheme not found.' });
+  db.prepare('DELETE FROM government_schemes WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// Admin Market Prices CRUD
+app.post('/api/admin/markets', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const b = req.body || {};
+  const commodityName = String(b.commodityName || '').trim();
+  const marketName = String(b.marketName || '').trim();
+  if (!commodityName || !marketName) {
+    return res.status(400).json({ error: 'Commodity name and market name are required.' });
+  }
+  const id = `mkt-${Date.now()}`;
+  const nowIso = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO market_prices (
+      id, commodity_name, variety, category, market_name, district, state,
+      min_price, max_price, modal_price, unit, previous_price, demand_level,
+      supply_level, price_date, data_source, source_url, is_live_api, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+  `).run(
+    id,
+    commodityName,
+    String(b.variety || 'FAQ Grade'),
+    String(b.category || 'Agricultural Commodities'),
+    marketName,
+    String(b.district || marketName),
+    String(b.state || 'India'),
+    Number(b.minPrice) || Number(b.modalPrice) || 0,
+    Number(b.maxPrice) || Number(b.modalPrice) || 0,
+    Number(b.modalPrice) || 0,
+    String(b.unit || 'INR / Quintal'),
+    b.previousPrice !== undefined ? Number(b.previousPrice) : null,
+    String(b.demandLevel || 'Moderate'),
+    String(b.supplyLevel || 'Moderate'),
+    String(b.priceDate || nowIso.split('T')[0]),
+    String(b.dataSource || 'Admin Verified Mandi Entry'),
+    String(b.sourceUrl || 'https://agmarknet.gov.in/'),
+    nowIso
+  );
+
+  const created = db.prepare('SELECT * FROM market_prices WHERE id = ?').get(id) as any;
+  res.status(201).json({ market: mapMarketRow(created) });
+});
+
+app.put('/api/admin/markets/:id', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const existing = db.prepare('SELECT * FROM market_prices WHERE id = ?').get(req.params.id) as any;
+  if (!existing) return res.status(404).json({ error: 'Market record not found.' });
+  const b = req.body || {};
+
+  db.prepare(`
+    UPDATE market_prices
+    SET commodity_name = ?, variety = ?, category = ?, market_name = ?, state = ?,
+        min_price = ?, max_price = ?, modal_price = ?, unit = ?, demand_level = ?,
+        supply_level = ?, price_date = ?, data_source = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    b.commodityName ?? existing.commodity_name,
+    b.variety ?? existing.variety,
+    b.category ?? existing.category,
+    b.marketName ?? existing.market_name,
+    b.state ?? existing.state,
+    b.minPrice !== undefined ? Number(b.minPrice) : existing.min_price,
+    b.maxPrice !== undefined ? Number(b.maxPrice) : existing.max_price,
+    b.modalPrice !== undefined ? Number(b.modalPrice) : existing.modal_price,
+    b.unit ?? existing.unit,
+    b.demandLevel ?? existing.demand_level,
+    b.supplyLevel ?? existing.supply_level,
+    b.priceDate ?? existing.price_date,
+    b.dataSource ?? existing.data_source,
+    new Date().toISOString(),
+    req.params.id
+  );
+
+  const updated = db.prepare('SELECT * FROM market_prices WHERE id = ?').get(req.params.id) as any;
+  res.json({ market: mapMarketRow(updated) });
+});
+
+app.delete('/api/admin/markets/:id', authenticate, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const existing = db.prepare('SELECT id FROM market_prices WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Market record not found.' });
+  db.prepare('DELETE FROM market_prices WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// ==================== AI ASSISTANT ENDPOINTS (Grounded in SQLite DB) ====================
+app.post('/api/ai/chat', aiLimiter, async (req: Request, res: Response) => {
+  const { message, history = [], language = 'English', role = 'entrepreneur' } = req.body || {};
+  const cleanMsg = String(message || '').trim();
+  if (!cleanMsg) {
+    return res.status(400).json({ error: 'Message is required.' });
   }
 
-  const newMsg: SellerMessage = {
-    id: `msg-${Date.now()}`,
-    productId: productId || 'prod-1',
-    productTitle: productTitle || 'Handcrafted Rural Product',
-    senderId: senderId || 'user-customer-1',
-    senderName: senderName || 'Valued Patron',
-    senderRole: senderRole || 'customer',
-    recipientId: recipientId || 'user-artisan-1',
-    recipientName: recipientName || 'Artisan Lead',
-    text: text.trim(),
-    timestamp: new Date().toISOString(),
-    read: false
+  // Search local SQLite database for grounded context
+  const dbMatches = runUniversalSearch({ q: cleanMsg, type: 'all', limit: 4 });
+  const references = {
+    projects: dbMatches.results.projects.slice(0, 3),
+    schemes: dbMatches.results.schemes.slice(0, 3),
+    markets: dbMatches.results.markets.slice(0, 3),
+    products: dbMatches.results.products.slice(0, 3)
   };
 
-  dbMessages.push(newMsg);
-  res.status(201).json({ message: newMsg });
+  const ai = getGeminiClient();
+  if (!ai) {
+    return res.status(503).json({
+      error: 'Advisor is unavailable because GEMINI_API_KEY is not configured.',
+      references
+    });
+  }
+
+  const contextSummary = JSON.stringify({
+    matchedProjects: references.projects.map(p => ({
+      name: p.name,
+      category: p.category,
+      investment: p.requiredInvestment,
+      setupCost: p.estimatedSetupCost,
+      assumptions: p.costAssumptions,
+      schemes: p.relatedSchemeIds
+    })),
+    matchedSchemes: references.schemes.map(s => ({
+      name: s.name,
+      ministry: s.ministry,
+      state: s.state,
+      status: s.status,
+      financialAssistance: s.financialAssistance,
+      officialUrl: s.officialUrl
+    })),
+    matchedMarkets: references.markets.map(m => ({
+      commodity: m.commodityName,
+      market: m.marketName,
+      state: m.state,
+      modalPrice: m.modalPrice,
+      unit: m.unit,
+      date: m.priceDate,
+      source: m.dataSource
+    })),
+    matchedProducts: references.products.map(pr => ({
+      title: pr.title,
+      price: pr.price,
+      seller: pr.artisanName,
+      location: pr.artisanLocation
+    }))
+  });
+
+  const systemInstruction = `You are GramSetu Advisor (Gram Sahayak), a grounded assistant for rural & small-business entrepreneurs, farmers, and buyers in India.
+Respond in clear, practical ${language}. User role: ${role}.
+Use ONLY the verified database facts provided below when citing specific projects, scheme terms, prices, or product listings. Never invent government URLs, subsidy amounts, or guaranteed profit promises. Whenever sharing project setup costs, note that they are indicative regional estimates. If verified info for a detail is unavailable, say so clearly.
+
+Verified Database Context for this query:
+${contextSummary}`;
+
+  const recentHistory = Array.isArray(history)
+    ? history.slice(-6).map((h: any) => `${h.sender === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n')
+    : '';
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: recentHistory ? `${recentHistory}\nUser: ${cleanMsg}` : cleanMsg,
+      config: { systemInstruction }
+    });
+    res.json({
+      reply: response.text || 'I could not generate a response for that query.',
+      references
+    });
+  } catch (err: any) {
+    console.error('Gemini /api/ai/chat error:', err?.message || err);
+    res.status(502).json({
+      error: 'Unable to reach AI service right now. Verified database matches are attached below.',
+      references
+    });
+  }
 });
 
-// ==================== VITE & STATIC FILES SETUP ====================
+app.post('/api/ai/app-voice-assistant', aiLimiter, async (req: Request, res: Response) => {
+  const { query, language = 'English', currentTab = 'landing' } = req.body || {};
+  const cleanQ = String(query || '').trim();
+  if (!cleanQ) {
+    return res.status(400).json({ error: 'Query is required.' });
+  }
+
+  const dbMatches = runUniversalSearch({ q: cleanQ, type: 'all', limit: 3 });
+  const references = {
+    projects: dbMatches.results.projects.slice(0, 2),
+    schemes: dbMatches.results.schemes.slice(0, 2),
+    markets: dbMatches.results.markets.slice(0, 2),
+    products: dbMatches.results.products.slice(0, 2)
+  };
+
+  const ai = getGeminiClient();
+  if (!ai) {
+    return res.status(503).json({
+      error: 'Voice assistant unavailable (GEMINI_API_KEY not configured).',
+      references
+    });
+  }
+
+  const validTabs = [
+    'landing',
+    'projects',
+    'schemes',
+    'market',
+    'marketplace',
+    'deals',
+    'dashboard',
+    'customer',
+    'logistics',
+    'village-connect',
+    'admin',
+    'ai-assistant',
+    'support'
+  ];
+
+  const systemInstruction = `You are GramSetu Voice Assistant. Current page tab: "${currentTab}".
+Valid navigation tabs: ${validTabs.join(', ')}.
+Answer the user's question concisely in ${language} (2-4 spoken sentences) using ONLY accurate GramSetu data below, and return JSON with optional navigation/search action.
+Database Matches: ${JSON.stringify({
+    projects: references.projects.map(p => p.name),
+    schemes: references.schemes.map(s => ({ name: s.name, officialUrl: s.officialUrl })),
+    markets: references.markets.map(m => ({ commodity: m.commodityName, price: m.modalPrice, unit: m.unit })),
+    products: references.products.map(pr => ({ title: pr.title, price: pr.price }))
+  })}`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: cleanQ,
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            reply: { type: Type.STRING },
+            actionType: { type: Type.STRING, description: 'navigate | search_product | track_order | none' },
+            actionTarget: { type: Type.STRING },
+            suggestedQueries: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ['reply', 'actionType']
+        }
+      }
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    const action =
+      parsed.actionType && parsed.actionType !== 'none' && parsed.actionTarget
+        ? { type: parsed.actionType, target: parsed.actionTarget }
+        : undefined;
+
+    res.json({
+      reply: parsed.reply || 'Here is what I found on GramSetu.',
+      action,
+      suggestedQueries: Array.isArray(parsed.suggestedQueries) ? parsed.suggestedQueries.slice(0, 4) : [],
+      references
+    });
+  } catch (err: any) {
+    console.error('Gemini voice assistant error:', err?.message || err);
+    res.status(502).json({
+      error: 'Voice assistant service could not respond right now.',
+      references
+    });
+  }
+});
+
+app.post('/api/ai/generate-description', aiLimiter, async (req: Request, res: Response) => {
+  const { title, category, materials, artisanLocation } = req.body || {};
+  const ai = getGeminiClient();
+  if (!ai) {
+    return res.status(503).json({ error: 'GEMINI_API_KEY is not configured.' });
+  }
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: `Write an authentic product story, 4 factual bullet highlights, and an indicative fair INR price for "${title}" (category: ${category}, materials: ${materials}, origin: ${artisanLocation}).`,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            story: { type: Type.STRING },
+            features: { type: Type.ARRAY, items: { type: Type.STRING } },
+            suggestedPrice: { type: Type.NUMBER }
+          },
+          required: ['story', 'features', 'suggestedPrice']
+        }
+      }
+    });
+    res.json(JSON.parse(response.text || '{}'));
+  } catch (err: any) {
+    res.status(502).json({ error: 'Failed to generate product description.' });
+  }
+});
+
+app.post('/api/ai/business-tips', aiLimiter, async (req: Request, res: Response) => {
+  const { category = 'handicrafts', season = 'Festive Season' } = req.body || {};
+  const ai = getGeminiClient();
+  if (!ai) {
+    return res.status(503).json({ error: 'GEMINI_API_KEY is not configured.' });
+  }
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: `Provide 3 practical business & inventory tips for rural sellers in "${category}" during "${season}". Keep each tip concise and realistic without exaggerating income.`
+    });
+    res.json({ tips: response.text || '' });
+  } catch {
+    res.status(502).json({ error: 'Failed to load AI business tips.' });
+  }
+});
+
+app.post('/api/voice/speak-in-language', aiLimiter, async (req: Request, res: Response) => {
+  const { text, targetLanguage = 'Hindi', languageCode = 'hi-IN' } = req.body || {};
+  const cleanText = String(text || '').trim();
+  if (!cleanText) return res.status(400).json({ error: 'Text is required.' });
+
+  const ai = getGeminiClient();
+  if (!ai) {
+    return res.json({ spokenAudioScript: cleanText, languageCode, fallback: true });
+  }
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: `Translate this into clear, natural spoken ${targetLanguage} suitable for text-to-speech playback. Output only the translated text:\n\n${cleanText}`
+    });
+    res.json({
+      spokenAudioScript: response.text?.trim() || cleanText,
+      languageCode
+    });
+  } catch {
+    res.json({ spokenAudioScript: cleanText, languageCode, fallback: true });
+  }
+});
+
+// ==================== VITE / STATIC ENTRY POINT ====================
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: 'spa',
+      appType: 'spa'
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = fs.existsSync(path.resolve(__dirname, 'dist'))
+      ? path.resolve(__dirname, 'dist')
+      : path.resolve(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.resolve(distPath, 'index.html'));
+    app.get('*', (req: Request, res: Response) => {
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'API endpoint not found.' });
+      }
+      const indexFile = path.resolve(distPath, 'index.html');
+      if (fs.existsSync(indexFile)) {
+        return res.sendFile(indexFile);
+      }
+      return res.status(503).send('Application build not found.');
     });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Gram AI Server] running on http://0.0.0.0:${PORT}`);
+    console.log(`[GramSetu Server] running on http://0.0.0.0:${PORT}`);
   });
 }
 
 startServer().catch(err => {
   console.error('Failed to start server:', err);
+  process.exit(1);
 });

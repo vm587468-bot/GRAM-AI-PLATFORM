@@ -376,7 +376,7 @@ export const SupportPage: React.FC = () => {
       {/* Regional Village Cluster Hubs Directory */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-4">
         <div>
-          <h3 className="font-bold text-sm text-slate-900">Gram AI Physical Cluster Hubs & Kiosks</h3>
+          <h3 className="font-bold text-sm text-slate-900">GramSetu Physical Cluster Hubs & Kiosks</h3>
           <p className="text-xs text-slate-500">Walk in for free packaging supplies, quality testing, and digital payment onboarding</p>
         </div>
 

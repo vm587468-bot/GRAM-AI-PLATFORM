@@ -64,19 +64,20 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
     else setSelectedVoiceLang('en-IN');
   }, [language]);
 
+  const [speechNotice, setSpeechNotice] = useState<string | null>(null);
   const [history, setHistory] = useState<ChatItem[]>([
     {
       id: 'init-msg',
       sender: 'assistant',
-      text: "Namaste! I am your Gram AI Voice Assistant. Speak or type any query about village products, verified GI quality, government schemes, UPI escrow payments, parcel tracking, or artisan deals."
+      text: "Namaste! I am your GramSetu Voice Assistant. Ask about micro-enterprise projects, official government schemes, mandi market prices, verified products, or parcel tracking."
     }
   ]);
 
   const [suggestedQueries, setSuggestedQueries] = useState<string[]>([
-    'How does UPI escrow protect buyers and artisans?',
+    'Show me Oyster Mushroom project requirements',
     'Track my parcel GRAM-88219',
     'How to apply for PM Vishwakarma scheme?',
-    'Discover best deals and rural schemes',
+    'Show reference market price for Turmeric',
     'Show me handloom sarees and textiles'
   ]);
 
@@ -89,8 +90,9 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
 
   // Voice Speech-To-Text Handler
   const toggleRecording = () => {
+    setSpeechNotice(null);
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      alert('Speech recognition is not supported in this browser. Please type your query in the box.');
+      setSpeechNotice('Speech recognition is not supported in this browser. Please type your query below.');
       return;
     }
 
@@ -222,7 +224,10 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
       });
 
       const data = await res.json();
-      const botReply = data.reply || 'Here is what I found on Gram AI.';
+      if (!res.ok) {
+        throw new Error(data.error || 'Voice assistant could not respond right now.');
+      }
+      const botReply = data.reply || 'Here is what I found on GramSetu.';
 
       const botItem: ChatItem = {
         id: `bot-${Date.now()}`,
@@ -236,25 +241,20 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
         setSuggestedQueries(data.suggestedQueries);
       }
 
-      // Auto-speak response if enabled
       if (autoSpeak) {
         speakText(botReply);
       }
 
-      // Execute app actions
       if (data.action) {
         handleExecuteAction(data.action);
       }
-
-    } catch (err) {
-      console.error('Voice query error', err);
-      const fallbackItem: ChatItem = {
-        id: `bot-${Date.now()}`,
+    } catch (err: any) {
+      const errItem: ChatItem = {
+        id: `bot-err-${Date.now()}`,
         sender: 'assistant',
-        text: "Gram AI connects village producers directly with conscious buyers across India, featuring verified GI crafts, authentic product quality, direct UPI escrow, postal logistics, and transparent pricing."
+        text: err?.message || 'Unable to reach GramSetu voice assistant right now. Please try again.'
       };
-      setHistory(prev => [...prev, fallbackItem]);
-      if (autoSpeak) speakText(fallbackItem.text);
+      setHistory(prev => [...prev, errItem]);
     } finally {
       setLoading(false);
     }
@@ -289,7 +289,6 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
           >
             <div className="relative">
               <Sparkles className="w-5 h-5 text-[#E6B325]" />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#E6B325] animate-ping" />
             </div>
             <span className="font-semibold text-xs tracking-wide">
               {t.voiceAdvisor}
@@ -498,7 +497,7 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={isRecording ? `Listening in ${selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label.split(' ')[0] || 'Selected Language')}...` : 'Ask anything about products or CS architecture...'}
+                placeholder={isRecording ? `Listening in ${selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label.split(' ')[0] || 'Selected Language')}...` : 'Ask about projects, govt schemes, market prices, or products...'}
                 className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#2D5A27] dark:focus:border-emerald-500 placeholder-slate-400"
               />
 
@@ -511,9 +510,14 @@ export const AppVoiceWidget: React.FC<AppVoiceWidgetProps> = ({
               </button>
             </form>
 
+            {speechNotice && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1.5 px-1">
+                {speechNotice}
+              </p>
+            )}
+
             {isRecording && (
               <p className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold mt-1 px-1 flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
                 <span>Listening now in {selectedVoiceLang === 'custom' ? (customVoiceLangName || 'Custom Language') : (UNIVERSAL_AUDIO_LANGUAGES.find(l => l.code === selectedVoiceLang)?.label || 'Selected Language')}... Speak clearly!</span>
               </p>
             )}

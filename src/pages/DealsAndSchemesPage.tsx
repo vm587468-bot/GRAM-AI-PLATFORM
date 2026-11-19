@@ -311,9 +311,12 @@ export const DealsAndSchemesPage: React.FC<DealsAndSchemesPageProps> = ({
                 {/* Product Image Gallery with Zoom */}
                 <div className="relative">
                   <ProductImageGallery
+                    key={product.id}
+                    productId={product.id}
                     images={product.images}
                     primaryImageUrl={product.imageUrl}
                     title={product.title}
+                    updatedAt={product.updatedAt}
                     aspectRatio="aspect-4/3"
                   />
 

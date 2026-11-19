@@ -12,19 +12,30 @@ import {
   Award,
   ChevronRight,
   Landmark,
-  Tag,
-  Percent
+  FolderKanban,
+  TrendingUp
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { SupportedLanguage } from '../i18n';
 import { GovernmentSchemesSection } from '../components/GovernmentSchemesSection';
+import { GlobalSearchBar } from '../components/GlobalSearchBar';
 
 interface LandingPageProps {
   setActiveTab: (tab: string) => void;
   currentLang?: SupportedLanguage;
+  onSelectProject?: (projectId: string) => void;
+  onSelectProduct?: (productId: string) => void;
+  onSelectScheme?: (schemeName: string) => void;
+  onSelectMarket?: (commodityName: string) => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({
+  setActiveTab,
+  onSelectProject = () => {},
+  onSelectProduct = () => {},
+  onSelectScheme = () => {},
+  onSelectMarket = () => {}
+}) => {
   const { language, t } = useLanguage();
 
   return (
@@ -51,30 +62,40 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab }) => {
                 {t.heroSubtitle}
               </p>
 
+              {/* Universal Hero Search */}
+              <div className="pt-1">
+                <GlobalSearchBar
+                  onSelectProject={onSelectProject}
+                  onSelectProduct={onSelectProduct}
+                  onSelectScheme={onSelectScheme}
+                  onSelectMarket={onSelectMarket}
+                />
+              </div>
+
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
-                  onClick={() => setActiveTab('marketplace')}
-                  className="px-6 py-3.5 rounded-xl bg-[#2D5A27] dark:bg-emerald-600 hover:bg-[#1E3D1A] dark:hover:bg-emerald-500 text-white font-semibold text-sm transition-all shadow-lg hover:shadow-xl flex items-center gap-2 group cursor-pointer"
+                  onClick={() => setActiveTab('projects')}
+                  className="px-5 py-3.5 rounded-xl bg-[#2D5A27] dark:bg-emerald-600 hover:bg-[#1E3D1A] dark:hover:bg-emerald-500 text-white font-semibold text-sm transition-all shadow-lg hover:shadow-xl flex items-center gap-2 group cursor-pointer"
                 >
-                  <span>{t.exploreMarketplace}</span>
+                  <FolderKanban className="w-4 h-4 text-[#E6B325] dark:text-amber-300" />
+                  <span>Explore Projects</span>
                   <ArrowRight className="w-4 h-4 text-[#E6B325] dark:text-amber-300 group-hover:translate-x-1 transition-transform" />
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('deals')}
+                  onClick={() => setActiveTab('marketplace')}
                   className="px-5 py-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer border border-amber-500"
                 >
-                  <Sparkles className="w-4 h-4 text-slate-950" />
-                  <span>{t.navDeals}</span>
+                  <span>{t.exploreMarketplace}</span>
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('dashboard')}
+                  onClick={() => setActiveTab('market')}
                   className="px-5 py-3.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-[#2D5A27] dark:text-emerald-400 border border-[#2D5A27]/30 dark:border-slate-700 font-semibold text-sm transition-all shadow-xs hover:border-[#2D5A27] flex items-center gap-2 cursor-pointer"
                 >
-                  <BarChart3 className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400" />
-                  <span>{t.artisanDashboard}</span>
+                  <TrendingUp className="w-4 h-4 text-[#2D5A27] dark:text-emerald-400" />
+                  <span>{t.navMarket}</span>
                 </button>
 
                 <button
@@ -116,7 +137,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab }) => {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm text-slate-900 dark:text-white">{t.ecosystemHub}</span>
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
                         </div>
                         <span className="text-[11px] text-slate-500 dark:text-slate-400">{t.liveNodalNetwork}</span>
                       </div>
@@ -205,7 +226,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab }) => {
           <div className="mt-10 p-5 rounded-3xl bg-white/95 dark:bg-[#1E293B]/95 border-2 border-[#E6B325]/50 dark:border-[#E6B325]/30 shadow-lg backdrop-blur-md transition-colors">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                 <span className="font-bold text-xs sm:text-sm text-[#2D5A27] dark:text-emerald-300 uppercase tracking-wide flex items-center gap-1.5">
                   <Landmark className="w-4 h-4 text-[#C69516] dark:text-amber-400" />
                   <span>{t.schemesBannerTitle}</span>
@@ -559,7 +580,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab }) => {
             <div className="p-4 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 space-y-3">
               <div className="flex text-[#E6B325]">★★★★★</div>
               <p className="text-slate-700 dark:text-slate-300 italic leading-relaxed">
-                "Gram AI's integration with the rural post office network solves the biggest headache in rural development: last-mile transport. Our district crafts now reach Mumbai in 3 days."
+                "GramSetu's integration with the rural post office network solves a major hurdle in rural development: last-mile transport. Our district crafts now reach Mumbai in 3 days."
               </p>
               <div className="font-semibold text-slate-900 dark:text-white">
                 Pooja Venkatesh · Rural Dev Coordinator
@@ -569,7 +590,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setActiveTab }) => {
             <div className="p-4 rounded-2xl bg-[#F8F5F0] dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 space-y-3">
               <div className="flex text-[#E6B325]">★★★★★</div>
               <p className="text-slate-700 dark:text-slate-300 italic leading-relaxed">
-                "The Gram Sahayak AI answers in simple Hindi and regional languages. When we didn't know how to register for the PM Vishwakarma toolkit grant, it explained every document step by step!"
+                "GramSetu answers in simple Hindi and regional languages. When we needed help registering for the PM Vishwakarma toolkit grant, it explained every document step by step."
               </p>
               <div className="font-semibold text-slate-900 dark:text-white">
                 Shankar Lal · Carpenter & Woodworker

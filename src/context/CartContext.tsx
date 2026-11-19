@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Product } from '../types';
 
 export interface CartItem {
@@ -12,6 +12,7 @@ interface CartContextType {
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  syncCartWithServer: () => Promise<void>;
   totalItems: number;
   subtotal: number;
   isCartOpen: boolean;
@@ -32,6 +33,49 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  const syncCartWithServer = useCallback(async () => {
+    try {
+      const res = await fetch('/api/products?limit=100', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const liveProducts: Product[] = Array.isArray(data.products) ? data.products : [];
+      if (liveProducts.length === 0) return;
+      const byId = new Map(liveProducts.map(p => [p.id, p]));
+
+      setCart(prev => {
+        if (prev.length === 0) return prev;
+        let changed = false;
+        const next: CartItem[] = [];
+        for (const item of prev) {
+          const fresh = byId.get(item.product.id);
+          if (!fresh) {
+            changed = true;
+            continue;
+          }
+          if (
+            fresh.imageUrl !== item.product.imageUrl ||
+            fresh.title !== item.product.title ||
+            fresh.price !== item.product.price ||
+            fresh.updatedAt !== item.product.updatedAt ||
+            fresh.sku !== item.product.sku
+          ) {
+            changed = true;
+            next.push({ ...item, product: fresh });
+          } else {
+            next.push(item);
+          }
+        }
+        return changed ? next : prev;
+      });
+    } catch {
+      // keep existing cart if offline
+    }
+  }, []);
+
+  useEffect(() => {
+    syncCartWithServer();
+  }, [syncCartWithServer]);
+
   useEffect(() => {
     localStorage.setItem('gramai_cart', JSON.stringify(cart));
   }, [cart]);
@@ -42,7 +86,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (existing) {
         return prev.map(item =>
           item.product.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { product, quantity: item.quantity + quantity }
             : item
         );
       }
@@ -82,6 +126,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         removeFromCart,
         updateQuantity,
         clearCart,
+        syncCartWithServer,
         totalItems,
         subtotal,
         isCartOpen,

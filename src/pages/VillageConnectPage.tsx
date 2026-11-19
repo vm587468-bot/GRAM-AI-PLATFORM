@@ -104,7 +104,7 @@ export const VillageConnectPage: React.FC<{ currentLang?: SupportedLanguage; set
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80',
       tag: 'joint_order',
       title: 'Looking for 300 Hand-Stitched Jute Bat Covers for Export Consignment',
-      content: 'We received an institutional sports order for 300 grade-1 willow cricket bats. Seeking textile SHG to supply 300 reinforced jute carrying bags with drawstring within 10 days. Guaranteed payment through Gram AI Escrow.',
+      content: 'We received an institutional sports order for 300 grade-1 willow cricket bats. Seeking textile SHG to supply 300 reinforced jute carrying bags with drawstring within 10 days. Guaranteed payment through GramSetu Escrow.',
       timeAgo: '1 day ago',
       interestedCount: 11,
       contactPhone: '+91 91920 88401'

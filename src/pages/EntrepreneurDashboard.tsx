@@ -24,14 +24,17 @@ import {
   Landmark,
   ShieldCheck,
   Check,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  FileText
 } from 'lucide-react';
 import { Product, Order } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { SafeProductImage } from '../components/SafeProductImage';
 
 export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiveTab }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, token } = useAuth();
   const { t } = useLanguage();
   const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'orders' | 'chats' | 'payouts' | 'inventory' | 'schemes'>('analytics');
   
@@ -39,6 +42,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
   const [orders, setOrders] = useState<Order[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [productFormNotice, setProductFormNotice] = useState<string | null>(null);
 
   // Customer Chats state
   const [customerChats, setCustomerChats] = useState<any[]>([]);
@@ -55,34 +59,47 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
   const [businessTips, setBusinessTips] = useState<string>('');
   const [tipsLoading, setTipsLoading] = useState(false);
 
-  // New Product Modal State
+  // Add / Edit Product Modal State (NEVER pre-fill another product's image!)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [newSku, setNewSku] = useState('');
   const [newTitle, setNewTitle] = useState('');
-  const [newCategory, setNewCategory] = useState<'textiles' | 'spices' | 'pottery' | 'honey_oils' | 'bamboo_wood'>('textiles');
+  const [newBrand, setNewBrand] = useState('');
+  const [newModel, setNewModel] = useState('');
+  const [newCondition, setNewCondition] = useState<'new' | 'like_new' | 'good' | 'fair'>('new');
+  const [newCategory, setNewCategory] = useState<string>('textiles');
   const [newPrice, setNewPrice] = useState('1200');
   const [newStock, setNewStock] = useState('15');
   const [newUnit, setNewUnit] = useState('piece');
-  const [newMaterials, setNewMaterials] = useState('Hand-spun cotton, Natural herbal dye');
+  const [newMaterials, setNewMaterials] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newArtisanStory, setNewArtisanStory] = useState('');
-  const [newImageUrl, setNewImageUrl] = useState('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80');
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [newExtraImages, setNewExtraImages] = useState('');
+  const [newDocTitle, setNewDocTitle] = useState('');
+  const [newDocType, setNewDocType] = useState<'certificate' | 'specification' | 'provenance' | 'care_guide' | 'lab_report'>('certificate');
+  const [newDocSummary, setNewDocSummary] = useState('');
+  const [verifyingImage, setVerifyingImage] = useState(false);
+  const [imageVerifyResult, setImageVerifyResult] = useState<{ valid: boolean; reason: string } | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [submittingProduct, setSubmittingProduct] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
     fetchAIBusinessTips();
     fetchCustomerChats();
     fetchPayouts();
-  }, []);
+  }, [currentUser.id]);
 
   const loadDashboardData = async () => {
     setLoading(true);
     try {
+      const sellerId = currentUser?.role === 'entrepreneur' ? currentUser.id : 'user-artisan-1';
       const [prodRes, orderRes, analRes] = await Promise.all([
-        fetch('/api/products?artisanId=user-artisan-1'),
-        fetch('/api/orders?artisanId=user-artisan-1'),
-        fetch('/api/analytics/overview')
+        fetch(`/api/products?artisanId=${encodeURIComponent(sellerId)}&limit=100`, { cache: 'no-store' }),
+        fetch(`/api/orders?artisanId=${encodeURIComponent(sellerId)}`, { cache: 'no-store' }),
+        fetch('/api/analytics/overview', { cache: 'no-store' })
       ]);
 
       const [prodData, orderData, analData] = await Promise.all([
@@ -191,10 +208,10 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
     }
   };
 
-  // Generate description using Gemini 3.8 Flash on server
   const handleAIGenerateDescription = async () => {
+    setProductFormNotice(null);
     if (!newTitle.trim()) {
-      alert('Please enter a product title first (e.g. Handwoven Khadi Saree)');
+      setProductFormNotice('Please enter a product title first (e.g. Handwoven Khadi Saree).');
       return;
     }
     setAiGenerating(true);
@@ -210,6 +227,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
         })
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Story generation failed');
       if (data.story) setNewArtisanStory(data.story);
       if (data.features) {
         setNewDescription(data.story + '\n\nKey Highlights:\n• ' + data.features.join('\n• '));
@@ -217,50 +235,198 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
       if (data.suggestedPrice) {
         setNewPrice(String(data.suggestedPrice));
       }
-    } catch (err) {
-      console.error('AI generation failed', err);
+    } catch (err: any) {
+      setProductFormNotice(err?.message || 'Unable to generate description right now.');
     } finally {
       setAiGenerating(false);
+    }
+  };
+
+  const openCreateProductModal = () => {
+    setEditingProductId(null);
+    setNewSku('');
+    setNewTitle('');
+    setNewBrand('');
+    setNewModel('');
+    setNewCondition('new');
+    setNewCategory('textiles');
+    setNewPrice('1200');
+    setNewStock('15');
+    setNewUnit('piece');
+    setNewMaterials('');
+    setNewDescription('');
+    setNewArtisanStory('');
+    setNewImageUrl('');
+    setNewExtraImages('');
+    setNewDocTitle('');
+    setNewDocType('certificate');
+    setNewDocSummary('');
+    setImageVerifyResult(null);
+    setProductFormNotice(null);
+    setIsAddModalOpen(true);
+  };
+
+  const openEditProductModal = (prod: Product) => {
+    setEditingProductId(prod.id);
+    setNewSku(prod.sku || '');
+    setNewTitle(prod.title || '');
+    setNewBrand(prod.brand || '');
+    setNewModel(prod.model || '');
+    setNewCondition(prod.condition || 'new');
+    setNewCategory(prod.category || 'textiles');
+    setNewPrice(String(prod.price || ''));
+    setNewStock(String(prod.stock ?? 0));
+    setNewUnit(prod.unit || 'piece');
+    setNewMaterials((prod.materials || []).join(', '));
+    setNewDescription(prod.description || '');
+    setNewArtisanStory(prod.artisanStory || '');
+    setNewImageUrl(prod.imageUrl || '');
+    const extras = (prod.images || []).filter(u => u !== prod.imageUrl);
+    setNewExtraImages(extras.join('\n'));
+    const firstDoc = prod.documents?.[0];
+    setNewDocTitle(firstDoc?.title || '');
+    setNewDocType(firstDoc?.docType || 'certificate');
+    setNewDocSummary(firstDoc?.summary || '');
+    setImageVerifyResult(null);
+    setProductFormNotice(null);
+    setIsAddModalOpen(true);
+  };
+
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1.5 * 1024 * 1024) {
+      setImageVerifyResult({ valid: false, reason: 'Please select an image smaller than 1.5 MB.' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setNewImageUrl(reader.result);
+        setImageVerifyResult({ valid: true, reason: 'Uploaded product image ready and uniquely linked.' });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleVerifyImageUrl = async () => {
+    setVerifyingImage(true);
+    setImageVerifyResult(null);
+    try {
+      const res = await fetch('/api/products/verify-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: newImageUrl.trim(),
+          productId: editingProductId || undefined
+        })
+      });
+      const data = await res.json();
+      setImageVerifyResult({
+        valid: Boolean(data.valid),
+        reason: data.reason || (res.ok ? 'Verified.' : 'Image verification failed.')
+      });
+    } catch {
+      setImageVerifyResult({ valid: false, reason: 'Network error while verifying image URL.' });
+    } finally {
+      setVerifyingImage(false);
     }
   };
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingProduct(true);
+    setProductFormNotice(null);
     try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          artisanId: currentUser.id,
-          artisanName: `${currentUser.name} (${currentUser.shgName || 'Village SHG'})`,
-          artisanLocation: `${currentUser.location}, ${currentUser.state}`,
-          title: newTitle,
-          category: newCategory,
-          price: Number(newPrice),
-          stock: Number(newStock),
-          unit: newUnit,
-          materials: newMaterials.split(',').map(m => m.trim()),
-          description: newDescription || `${newTitle} handcrafted with traditional generational skills.`,
-          artisanStory: newArtisanStory || 'Directly crafted in our village cluster with love.',
-          imageUrl: newImageUrl,
-          fairTradePercent: 86
-        })
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const extraList = newExtraImages
+        .split(/[\n,]/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      const primaryTrimmed = newImageUrl.trim();
+      const gallery = Array.from(new Set(primaryTrimmed ? [primaryTrimmed, ...extraList] : extraList));
+
+      const documentsPayload = newDocTitle.trim()
+        ? [
+            {
+              id: editingProductId ? `doc-${editingProductId}-1` : undefined,
+              title: newDocTitle.trim(),
+              docType: newDocType,
+              issuer: currentUser.shgName || currentUser.name,
+              verified: true,
+              summary: newDocSummary.trim() || `Verified documentation for ${newTitle.trim()}.`
+            }
+          ]
+        : [];
+
+      const payload: Record<string, any> = {
+        sku: newSku.trim() || undefined,
+        artisanId: currentUser.id,
+        artisanName: `${currentUser.name} (${currentUser.shgName || 'Village SHG'})`,
+        artisanLocation: `${currentUser.location}, ${currentUser.state}`,
+        title: newTitle.trim(),
+        brand: newBrand.trim(),
+        model: newModel.trim(),
+        condition: newCondition,
+        category: newCategory,
+        price: Number(newPrice),
+        stock: Number(newStock),
+        unit: newUnit.trim() || 'piece',
+        materials: newMaterials
+          .split(',')
+          .map(m => m.trim())
+          .filter(Boolean),
+        description: newDescription.trim() || `${newTitle.trim()} crafted by verified producer.`,
+        artisanStory: newArtisanStory.trim() || 'Direct producer unit.',
+        imageUrl: primaryTrimmed,
+        images: gallery,
+        documents: documentsPayload,
+        fairTradePercent: 86
+      };
+
+      const targetUrl = editingProductId
+        ? `/api/products/${encodeURIComponent(editingProductId)}`
+        : '/api/products';
+      const method = editingProductId ? 'PUT' : 'POST';
+
+      const res = await fetch(targetUrl, {
+        method,
+        headers,
+        body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
-        setIsAddModalOpen(false);
-        // Reset form
-        setNewTitle('');
-        setNewDescription('');
-        setNewArtisanStory('');
-        loadDashboardData();
-        setActiveSubTab('inventory');
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save product listing.');
       }
-    } catch (err) {
-      console.error('Failed to create product', err);
+
+      setIsAddModalOpen(false);
+      setEditingProductId(null);
+      await loadDashboardData();
+      setActiveSubTab('inventory');
+    } catch (err: any) {
+      setProductFormNotice(err?.message || 'Failed to save product.');
     } finally {
       setSubmittingProduct(false);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers
+      });
+      if (res.ok) {
+        setConfirmDeleteId(null);
+        await loadDashboardData();
+      }
+    } catch (err) {
+      console.error('Failed to delete product', err);
     }
   };
 
@@ -275,9 +441,11 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
     if (!nextStatus) return;
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
       await fetch(`/api/orders/${orderId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ orderStatus: nextStatus })
       });
       loadDashboardData();
@@ -408,7 +576,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
           <MessageSquare className="w-4 h-4" />
           <span>{t.buyerEnquiries}</span>
           {customerChats.some(c => c.unreadByArtisan > 0) && (
-            <span className="w-2 h-2 rounded-full bg-[#E6B325] animate-ping" />
+            <span className="w-2 h-2 rounded-full bg-[#E6B325]" />
           )}
         </button>
 
@@ -936,7 +1104,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                 <p className="text-xs text-slate-500 dark:text-slate-400">{t.sellProductsSubtitle}</p>
               </div>
               <button
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={openCreateProductModal}
                 className="px-3.5 py-1.5 rounded-xl bg-[#2D5A27] text-white text-xs font-semibold hover:bg-[#1E3D1A] flex items-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -944,17 +1112,70 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map((prod) => (
-                <div key={prod.id} className="p-3 rounded-2xl border border-slate-200/80 bg-[#F8F5F0]/40 flex gap-3 items-center">
-                  <img src={prod.imageUrl} alt={prod.title} className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
-                  <div className="flex-1 min-w-0 text-xs">
-                    <h4 className="font-bold text-slate-900 truncate">{prod.title}</h4>
-                    <div className="text-[#2D5A27] font-serif font-bold text-sm">₹{prod.price}</div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
-                      <span>Stock: <strong>{prod.stock} {prod.unit}s</strong></span>
-                      <span className="text-emerald-700 font-medium">86% Fair Cut</span>
+                <div key={prod.id} className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-[#F8F5F0]/40 dark:bg-slate-800/50 flex flex-col gap-3">
+                  <div className="flex gap-3 items-center">
+                    <SafeProductImage
+                      src={prod.imageUrl}
+                      alt={prod.title}
+                      updatedAt={prod.updatedAt}
+                      compact
+                      containerClassName="w-16 h-16 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="flex-1 min-w-0 text-xs">
+                      <h4 className="font-bold text-slate-900 dark:text-white truncate">{prod.title}</h4>
+                      {prod.sku && (
+                        <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate">
+                          SKU: {prod.sku}
+                        </div>
+                      )}
+                      <div className="text-[#2D5A27] dark:text-emerald-400 font-serif font-bold text-sm">₹{prod.price}</div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        <span>Stock: <strong>{prod.stock} {prod.unit}s</strong></span>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-medium">86% Fair Cut</span>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => openEditProductModal(prod)}
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-[#2D5A27] font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span>Edit Listing &amp; Image</span>
+                    </button>
+
+                    {confirmDeleteId === prod.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProduct(prod.id)}
+                          className="px-2 py-1 rounded-lg bg-rose-600 text-white font-bold cursor-pointer"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(prod.id)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                        title="Delete product"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1068,22 +1289,27 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
         </div>
       )}
 
-      {/* Add Product Modal with Gemini AI Description Generator */}
+      {/* Add / Edit Product Modal with Verified Image & Document Binding */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-[#2D5A27]/20 text-[#2C2C2C]">
+          <div className="bg-white dark:bg-[#1E293B] rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-[#2D5A27]/20 dark:border-slate-700 text-[#2C2C2C] dark:text-slate-100">
             
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-[#2D5A27] text-[#E6B325] flex items-center justify-center font-bold">
-                  +
+                  {editingProductId ? <Edit3 className="w-4 h-4" /> : '+'}
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white">{t.uploadNewProduct}</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Sell directly to conscious urban buyers across India</p>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                    {editingProductId ? 'Edit Product, Image & Documents' : t.uploadNewProduct}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Each product requires a unique SKU and its own verified photo (or leave photo blank for Image Not Available)
+                  </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAddModalOpen(false)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
@@ -1092,19 +1318,80 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
             </div>
 
             <form onSubmit={handleCreateProduct} className="space-y-4 pt-4 text-xs">
-              
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  {t.productTitleLabel} *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder={t.productNamePlaceholder}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
-                />
+              {productFormNotice && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 font-medium">
+                  {productFormNotice}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.productTitleLabel} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder={t.productNamePlaceholder}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Unique SKU Code
+                  </label>
+                  <input
+                    type="text"
+                    value={newSku}
+                    onChange={(e) => setNewSku(e.target.value.toUpperCase())}
+                    placeholder="Auto-generated if blank"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-xs focus:outline-none focus:border-[#2D5A27]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.brandLabel}
+                  </label>
+                  <input
+                    type="text"
+                    value={newBrand}
+                    onChange={(e) => setNewBrand(e.target.value)}
+                    placeholder="Producer / Brand"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.modelLabel}
+                  </label>
+                  <input
+                    type="text"
+                    value={newModel}
+                    onChange={(e) => setNewModel(e.target.value)}
+                    placeholder="Model / Variant"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t.condition}
+                  </label>
+                  <select
+                    value={newCondition}
+                    onChange={(e) => setNewCondition(e.target.value as any)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-[#2D5A27]"
+                  >
+                    <option value="new">{t.conditionNew}</option>
+                    <option value="like_new">{t.conditionLikeNew}</option>
+                    <option value="good">{t.conditionGood}</option>
+                    <option value="fair">{t.conditionFair}</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1114,24 +1401,29 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   </label>
                   <select
                     value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value as any)}
+                    onChange={(e) => setNewCategory(e.target.value)}
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-[#2D5A27]"
                   >
                     <option value="textiles">{t.catTextiles}</option>
+                    <option value="clothes">{t.catClothes}</option>
+                    <option value="sports">{t.catSports}</option>
+                    <option value="ration">{t.catRation}</option>
                     <option value="spices">{t.catSpices}</option>
                     <option value="pottery">{t.catPottery}</option>
                     <option value="honey_oils">{t.catHoneyOils}</option>
                     <option value="bamboo_wood">{t.catBambooWood}</option>
+                    <option value="handicrafts">{t.catHandicrafts}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    {t.directFairPrice} *
+                    {t.directFairPrice} (₹) *
                   </label>
                   <input
                     type="number"
                     required
+                    min="1"
                     value={newPrice}
                     onChange={(e) => setNewPrice(e.target.value)}
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
@@ -1146,6 +1438,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   </label>
                   <input
                     type="number"
+                    min="0"
                     value={newStock}
                     onChange={(e) => setNewStock(e.target.value)}
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
@@ -1165,6 +1458,78 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                 </div>
               </div>
 
+              {/* Dedicated Verified Product Image Box */}
+              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/50 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-xs text-slate-900 dark:text-white">
+                    Product Photo Verification (Matched Exclusively to This Listing)
+                  </span>
+                  <label className="px-3 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-[#2D5A27] dark:text-emerald-400 hover:border-[#2D5A27] flex items-center gap-1.5 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Photo</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleProductImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 items-start">
+                  <SafeProductImage
+                    src={newImageUrl}
+                    alt={newTitle || 'Product preview'}
+                    containerClassName="w-24 h-24 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0"
+                    className="w-full h-full object-cover"
+                  />
+
+                  <div className="flex-1 w-full space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newImageUrl}
+                        onChange={(e) => {
+                          setNewImageUrl(e.target.value);
+                          setImageVerifyResult(null);
+                        }}
+                        placeholder="Paste direct HTTPS product photo URL or leave blank for Image Not Available"
+                        className="flex-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyImageUrl}
+                        disabled={verifyingImage}
+                        className="px-3 py-2 rounded-xl bg-[#2D5A27] text-white font-semibold text-[11px] hover:bg-[#1E3D1A] cursor-pointer disabled:opacity-50 shrink-0"
+                      >
+                        {verifyingImage ? 'Checking...' : 'Verify Image'}
+                      </button>
+                    </div>
+
+                    {imageVerifyResult && (
+                      <div
+                        className={`p-2 rounded-xl text-[11px] font-medium flex items-center gap-1.5 ${
+                          imageVerifyResult.valid
+                            ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{imageVerifyResult.reason}</span>
+                      </div>
+                    )}
+
+                    <textarea
+                      rows={2}
+                      value={newExtraImages}
+                      onChange={(e) => setNewExtraImages(e.target.value)}
+                      placeholder="Optional additional angle photo URLs (one per line)"
+                      className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-[11px] focus:outline-none focus:border-[#2D5A27]"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   {t.materialsIngredients}
@@ -1173,12 +1538,12 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   type="text"
                   value={newMaterials}
                   onChange={(e) => setNewMaterials(e.target.value)}
-                  placeholder="Pure Silk, Indigo, Turmeric Dye, Bamboo"
+                  placeholder="Pure Silk, Indigo, Kashmir Willow, Bamboo"
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                 />
               </div>
 
-              {/* AI Auto-Generate Button */}
+              {/* Description & Story Helper */}
               <div className="bg-[#E6B325]/15 dark:bg-amber-950/40 border border-[#E6B325]/30 dark:border-amber-700/40 p-3 rounded-2xl flex items-center justify-between">
                 <div>
                   <div className="font-semibold text-xs text-[#2D5A27] dark:text-amber-300 flex items-center gap-1.5">
@@ -1186,7 +1551,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                     <span>{t.aiStoryteller}</span>
                   </div>
                   <p className="text-[10px] text-slate-600 dark:text-slate-400">
-                    Auto-generate authentic artisan story, highlights & fair pricing with 1 click.
+                    Generate authentic producer story, highlights &amp; fair pricing with 1 click.
                   </p>
                 </div>
                 <button
@@ -1198,7 +1563,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   {aiGenerating ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Writing Story...</span>
+                      <span>Writing...</span>
                     </>
                   ) : (
                     <>
@@ -1217,7 +1582,7 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   rows={3}
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="Describe your craft details, size, and care instructions..."
+                  placeholder="Describe your product details, size, and care instructions..."
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
                 />
               </div>
@@ -1232,6 +1597,41 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   onChange={(e) => setNewArtisanStory(e.target.value)}
                   placeholder="Who made this? Share how this product supports your family or village SHG..."
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#2D5A27]"
+                />
+              </div>
+
+              {/* Product Document Binding */}
+              <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-xs">
+                  <FileText className="w-3.5 h-3.5 text-[#2D5A27] dark:text-emerald-400" />
+                  <span>Attached Product Document / Quality Certificate (Optional)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={newDocTitle}
+                    onChange={(e) => setNewDocTitle(e.target.value)}
+                    placeholder="Document title (e.g. Lab Purity Report)"
+                    className="sm:col-span-2 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                  />
+                  <select
+                    value={newDocType}
+                    onChange={(e) => setNewDocType(e.target.value as any)}
+                    className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                  >
+                    <option value="certificate">Certificate</option>
+                    <option value="specification">Specification</option>
+                    <option value="provenance">Provenance</option>
+                    <option value="lab_report">Lab Report</option>
+                    <option value="care_guide">Care Guide</option>
+                  </select>
+                </div>
+                <input
+                  type="text"
+                  value={newDocSummary}
+                  onChange={(e) => setNewDocSummary(e.target.value)}
+                  placeholder="Brief verified summary bound exclusively to this product ID"
+                  className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
                 />
               </div>
 
@@ -1251,10 +1651,10 @@ export const EntrepreneurDashboard: React.FC<{ setActiveTab: (tab: string) => vo
                   {submittingProduct ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-[#E6B325]" />
-                      <span>Publishing...</span>
+                      <span>Saving...</span>
                     </>
                   ) : (
-                    <span>{t.publishProductBtn}</span>
+                    <span>{editingProductId ? 'Save Changes' : t.publishProductBtn}</span>
                   )}
                 </button>
               </div>

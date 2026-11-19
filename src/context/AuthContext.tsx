@@ -1,43 +1,61 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  location?: string;
+  role?: 'entrepreneur' | 'customer';
+}
+
 interface AuthContextType {
   currentUser: User;
   token: string | null;
   role: 'entrepreneur' | 'customer' | 'admin';
   switchRole: (role: 'entrepreneur' | 'customer' | 'admin') => Promise<void>;
-  login: (email: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
 
 const DEFAULT_USER: User = {
   id: 'user-artisan-1',
-  name: 'Radha Devi',
-  email: 'radha.devi@gramai.in',
+  name: 'Vedant Mishra',
+  email: 'vedant.mishra@gramai.in',
   role: 'entrepreneur',
   phone: '+91 94310 44521',
-  location: 'Varanasi',
+  location: 'Varanasi Craft & Tech Hub',
   state: 'Uttar Pradesh',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Radha',
-  bio: 'Master handloom artisan & Self-Help Group coordinator representing 35 rural weavers across Varanasi district. Direct UPI escrow empowered.',
-  shgName: 'Ganga Weaver Self Help Group',
-  joinedDate: '2024-01-01'
+  avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Vedant%20Mishra',
+  bio: 'Lead Producer & Entrepreneur Coordinator at Mishra Rural Guild.',
+  shgName: 'Mishra Rural Guild & Tech Labs',
+  joinedDate: '2024-01-01',
+  accountStatus: 'active',
+  lastLoginAt: null,
+  lastLoginType: 'recent',
+  failedLoginAttempts: 0,
+  loginHistory: [],
+  suspensionAuditTrail: []
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('gramai_token') || 'demo_token_artisan');
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem('gramai_token') || 'demo_token_artisan'
+  );
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    // Attempt to fetch current user session
     const fetchMe = async () => {
+      if (!token) return;
       try {
         const res = await fetch('/api/auth/me', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
+          headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
           const data = await res.json();
@@ -46,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } catch (e) {
-        console.warn('Auth check fallback to local state', e);
+        console.warn('Auth check fallback', e);
       }
     };
     fetchMe();
@@ -73,22 +91,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string) => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, password })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-        setToken(data.token);
-        localStorage.setItem('gramai_token', data.token);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Invalid email or password.');
       }
-    } catch (e) {
-      console.error('Login failed', e);
+      setCurrentUser(data.user);
+      setToken(data.token);
+      localStorage.setItem('gramai_token', data.token);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const register = async (payload: RegisterPayload) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Registration failed.');
+      }
+      setCurrentUser(data.user);
+      setToken(data.token);
+      localStorage.setItem('gramai_token', data.token);
     } finally {
       setIsLoading(false);
     }
@@ -107,6 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: currentUser.role,
         switchRole,
         login,
+        register,
         logout,
         isLoading
       }}

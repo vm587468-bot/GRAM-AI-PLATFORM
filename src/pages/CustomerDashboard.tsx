@@ -16,6 +16,7 @@ import {
 import { Order } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { SafeProductImage } from '../components/SafeProductImage';
 
 interface CustomerDashboardProps {
   setActiveTab: (tab: string) => void;
@@ -265,7 +266,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {order.items.map((item, idx) => (
                     <div key={idx} className="flex gap-3 bg-[#F8F5F0]/60 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs">
-                      <img src={item.imageUrl} alt={item.title} className="w-16 h-16 rounded-xl object-cover border border-slate-200 dark:border-slate-700" />
+                      <SafeProductImage
+                        src={item.imageUrl}
+                        alt={item.title}
+                        compact
+                        containerClassName="w-16 h-16 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0"
+                        className="w-full h-full object-cover"
+                      />
                       <div className="flex-1 flex flex-col justify-between">
                         <div>
                           <h4 className="font-bold text-slate-900 dark:text-white line-clamp-1">{item.title}</h4>
@@ -275,7 +282,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                           <span className="font-serif font-bold text-slate-800 dark:text-slate-200">₹{item.price} × {item.quantity}</span>
                           <div className="flex items-center gap-3">
                             <button
-                              onClick={() => handleOpenArtisanChat(item.artisanName, item.title, item.productId)}
+                              onClick={() => handleOpenArtisanChat(item.artisanName || 'Verified Seller', item.title, item.productId)}
                               className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-[#2D5A27] dark:hover:text-emerald-400 flex items-center gap-1 cursor-pointer"
                             >
                               <MessageSquare className="w-3 h-3 text-[#2D5A27] dark:text-emerald-400" />

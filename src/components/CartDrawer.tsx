@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Trash2, Plus, Minus, ArrowRight, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import { SafeProductImage } from './SafeProductImage';
 
 interface CartDrawerProps {
   onOpenCheckout: () => void;
@@ -70,10 +71,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout }) => {
                   key={item.product.id}
                   className="flex gap-3 p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#F8F5F0]/50 dark:bg-slate-800/70 hover:border-[#2D5A27]/20 dark:hover:border-emerald-500/30 transition-all"
                 >
-                  <img
+                  <SafeProductImage
                     src={item.product.imageUrl}
                     alt={item.product.title}
-                    className="w-20 h-20 rounded-lg object-cover border border-slate-200 dark:border-slate-700"
+                    updatedAt={item.product.updatedAt}
+                    compact
+                    containerClassName="w-20 h-20 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0"
+                    className="w-full h-full object-cover"
                   />
                   <div className="flex-1 flex flex-col justify-between text-xs">
                     <div>

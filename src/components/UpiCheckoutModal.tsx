@@ -337,7 +337,7 @@ export const UpiCheckoutModal: React.FC<UpiCheckoutModalProps> = ({
                 )}
               </button>
               <p className="text-[10px] text-center text-slate-400 dark:text-slate-400 mt-2">
-                Protected by Gram AI Rural Escrow Protocol · 100% Refund Guarantee on In-transit Damage
+                Protected by GramSetu Rural Escrow Protocol · 100% Refund Guarantee on In-transit Damage
               </p>
             </div>
           </div>

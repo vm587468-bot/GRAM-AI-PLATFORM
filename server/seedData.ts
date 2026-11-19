@@ -138,7 +138,7 @@ export const INITIAL_USERS: User[] = [
     location: 'Regional Hub HQ, Patna',
     state: 'Bihar',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=250&q=80',
-    bio: 'Gram AI Village Cluster Operations & Security Lead.',
+    bio: 'GramSetu Village Cluster Operations & Security Lead.',
     joinedDate: '2023-11-01',
     accountStatus: 'active',
     lastLoginAt: '2026-10-12T06:55:00Z',
@@ -155,6 +155,7 @@ export const INITIAL_USERS: User[] = [
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-1',
+    sku: 'FG-TXT-MAD-001',
     artisanId: 'user-artisan-1',
     artisanName: 'Vedant Mishra (Mishra Craft Guild)',
     artisanLocation: 'Varanasi, Uttar Pradesh',
@@ -169,20 +170,37 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: 'piece (2.5m x 0.9m)',
     rating: 4.9,
     reviewsCount: 38,
-    imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-1-madhubani-dupatta.jpg',
+    images: ['/images/products/prod-1-madhubani-dupatta.jpg'],
     description: 'Exquisite 100% natural Tussar silk dupatta featuring authentic Kohbar and peacock motifs painstakingly hand-painted using natural vegetable dyes, twig brushes, and nib pens.',
     specifications: {
+      'SKU': 'FG-TXT-MAD-001',
       'Fabric Material': '100% Pure Natural Tussar Silk',
       'Art Style': 'Mithila / Madhubani Freehand Painting',
       'Length & Width': '2.5 Metres x 0.9 Metres',
       'Dye Type': '100% Natural Vegetable & Plant Dyes',
       'Origin Cluster': 'Madhubani & Varanasi Weavers Guild'
     },
+    documents: [
+      {
+        id: 'doc-prod-1-gi',
+        productId: 'prod-1',
+        title: 'Madhubani Art & Tussar Silk Handloom Certificate',
+        docType: 'provenance',
+        issuer: 'Mishra Weave Guild & Silk Mark Verification',
+        verified: true,
+        summary: 'Certifies 100% hand-spun Tussar silk base and natural indigo/turmeric pigment brushwork by Madhubani cluster artisans.'
+      },
+      {
+        id: 'doc-prod-1-care',
+        productId: 'prod-1',
+        title: 'Natural Dye Care & Dry-Clean Sheet',
+        docType: 'care_guide',
+        issuer: 'Varanasi Textile Hub',
+        verified: true,
+        summary: 'Store wrapped in breathable muslin cloth. Dry clean only for first 3 washes; avoid direct harsh sunlight drying.'
+      }
+    ],
     warranty: '1 Year Color-Fastness Guarantee under gentle dry-cleaning',
     returnPolicy: '7 Days Easy Doorstep Return with Full UPI Refund',
     defectsNotice: 'Inspected 100% Defect-Free Quality. Each motif shows authentic hand-brushed nuances.',
@@ -199,6 +217,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-2',
+    sku: 'FG-POT-TER-002',
     artisanId: 'user-artisan-2',
     artisanName: 'Rameshwar Rathore',
     artisanLocation: 'Molela, Rajasthan',
@@ -213,19 +232,37 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: 'pot with terracotta lid',
     rating: 4.8,
     reviewsCount: 52,
-    imageUrl: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-2-terracotta-pot.jpg',
+    images: ['/images/products/prod-2-terracotta-pot.jpg'],
     description: 'Naturally unglazed, kiln-baked traditional clay handi. Enriches food with calcium, magnesium, and natural earthy aroma while ensuring non-toxic, slow alkaline cooking.',
     specifications: {
+      'SKU': 'FG-POT-TER-002',
       'Capacity': '2.5 Litres',
       'Material': 'Organic Riverbed Clay with Mica Flakes',
       'Stove Compatibility': 'Gas Stove (low flame/diffuser) & Clay Chulha',
       'Glaze': '100% Non-Toxic Unglazed Natural Red Clay',
       'Pre-Seasoning': 'Seasoned with Organic Rice Starch Water'
     },
+    documents: [
+      {
+        id: 'doc-prod-2-safety',
+        productId: 'prod-2',
+        title: 'Lead-Free & Food-Safe Kiln Clay Certificate',
+        docType: 'lab_report',
+        issuer: 'Mitti Shilp Samiti Molela',
+        verified: true,
+        summary: 'Confirms zero chemical glaze, lead-free Banas riverbed clay, and natural alkaline cooking thermal tolerance.'
+      },
+      {
+        id: 'doc-prod-2-seasoning',
+        productId: 'prod-2',
+        title: 'First-Use Clay Seasoning & Flame Guide',
+        docType: 'care_guide',
+        issuer: 'Mitti Shilp Samiti Molela',
+        verified: true,
+        summary: 'Soak in clean water for 15 minutes before first cooking; use low-to-medium flame and avoid sudden cold-water shock when hot.'
+      }
+    ],
     warranty: '6 Months Thermal Integrity Warranty against cracks during proper slow-cooking',
     returnPolicy: '7 Days Return with India Post Pickup if damaged in transit',
     defectsNotice: 'Zero cracks or fissures. Hand-turned on traditional wooden potter wheel.',
@@ -242,6 +279,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-3',
+    sku: 'FG-SPC-TUR-003',
     artisanId: 'user-artisan-3',
     artisanName: 'Vasantha Rao & Co-op',
     artisanLocation: 'Wayanad, Kerala',
@@ -256,26 +294,35 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: '500g vacuum sealed kraft pouch',
     rating: 5.0,
     reviewsCount: 64,
-    imageUrl: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-3-wayanad-turmeric.jpg',
+    images: ['/images/products/prod-3-wayanad-turmeric.jpg'],
     description: 'Certified organic, solar sun-dried heirloom turmeric powder with over 6.2% verified lab curcumin content. Grown in shade under Western Ghats canopy without chemical inputs.',
     specifications: {
+      'SKU': 'FG-SPC-TUR-003',
       'Weight': '500 Grams',
       'Lab Curcumin Test': '6.2% Verified Bio-Active Curcumin',
       'Farming Method': '100% Zero-Budget Natural Farming (ZBNF)',
       'Processing': 'Traditional Stone Mill Ground at Cold Temperature',
       'Preservatives': 'Zero Additives, Zero Artificial Colorants'
     },
+    documents: [
+      {
+        id: 'doc-prod-3-lab',
+        productId: 'prod-3',
+        title: 'Batch #WAY-2026 Curcumin & Residue Lab Report',
+        docType: 'lab_report',
+        issuer: 'Wayanad Tribal Collective FSSAI Lab',
+        verified: true,
+        summary: 'Verified 6.2% natural curcuminoids, zero lead chromate, and non-detectable pesticide residues.'
+      }
+    ],
     warranty: '18 Months Shelf-Life Freshness Sealed Guarantee',
     returnPolicy: '100% Money-Back Quality Guarantee if purity seal is intact',
     defectsNotice: 'Lab tested batch #WAY-2026. Zero pesticide residues, zero lead chromate.',
     verifiedSeller: true,
     sellerVerificationBadge: 'Wayanad Tribal Farmer Collective · FSSAI & Organic Certified',
     authenticityStatus: 'verified',
-    artisanStory: 'A collective of 40 tribal farmers in Wayanad practicing zero-budget natural farming. Gram AI guarantees direct farm-gate collection with immediate UPI payment.',
+    artisanStory: 'A collective of 40 tribal farmers in Wayanad practicing zero-budget natural farming. GramSetu guarantees direct farm-gate collection with immediate UPI payment.',
     materials: ['100% Curcuma Longa', 'Zero preservatives', 'Non-irradiated'],
     inStock: true,
     featured: true,
@@ -285,6 +332,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-4',
+    sku: 'FG-HON-MNG-004',
     artisanId: 'user-artisan-4',
     artisanName: 'Biren Mondal',
     artisanLocation: 'Sundarbans Biosphere, West Bengal',
@@ -299,19 +347,28 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: '400g glass jar with cork seal',
     rating: 4.9,
     reviewsCount: 29,
-    imageUrl: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1471943311424-646960669fbc?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-4-forest-honey.jpg',
+    images: ['/images/products/prod-4-forest-honey.jpg'],
     description: 'Unprocessed, unfiltered multi-floral raw nectar harvested sustainably by traditional Mouli foragers from wild Apis dorsata honeycombs in coastal mangrove forests.',
     specifications: {
+      'SKU': 'FG-HON-MNG-004',
       'Net Weight': '400 Grams',
       'Purity Grade': 'Raw, Unheated, NMR-Tested 100% Pure',
       'Harvest Region': 'Deep Sundarbans Mangrove Core',
       'Flora Source': 'Khalisha and Goran Wild Blossom Nectar',
       'Packaging': 'Food-Grade Borosilicate Glass Jar'
     },
+    documents: [
+      {
+        id: 'doc-prod-4-nmr',
+        productId: 'prod-4',
+        title: 'NMR Sugar-Syrup Adulteration Free Certificate',
+        docType: 'lab_report',
+        issuer: 'Mouli Forest Honey Gatherers Guild',
+        verified: true,
+        summary: 'NMR batch verification confirming zero added C4/C3 sugar syrup and raw unheated enzyme activity.'
+      }
+    ],
     warranty: 'Pure Honey Never Expires; 2 Years Sealed Quality Guarantee',
     returnPolicy: 'Replacement guarantee if jar arrives damaged',
     defectsNotice: 'May naturally crystallize in winter — sign of 100% raw unpasteurized honey.',
@@ -328,6 +385,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-5',
+    sku: 'FG-BMB-BSK-005',
     artisanId: 'user-artisan-5',
     artisanName: 'Hemant Boro',
     artisanLocation: 'Barpeta, Assam',
@@ -342,25 +400,34 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: 'piece with fitted lid',
     rating: 4.7,
     reviewsCount: 21,
-    imageUrl: 'https://images.unsplash.com/photo-1595079672139-5470805087e2?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1595079672139-5470805087e2?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-5-bamboo-basket.jpg',
+    images: ['/images/products/prod-5-bamboo-basket.jpg'],
     description: 'Fine split-cane bamboo basket intricately hand-woven with interlocking geometric lattice. Treated naturally against wood-borers using smoked sal leaves.',
     specifications: {
+      'SKU': 'FG-BMB-BSK-005',
       'Dimensions': '14 Inches Height x 11 Inches Diameter',
       'Material': 'Natural Seasoned Assam Golden Bamboo Cane',
       'Weaving Technique': 'Interlocking Hexagonal Bodo Lattice',
       'Finish': 'Smoked Sal-Leaf Anti-Borer Natural Finish'
     },
+    documents: [
+      {
+        id: 'doc-prod-5-spec',
+        productId: 'prod-5',
+        title: 'Assam Cane Treatment & Structural Spec Sheet',
+        docType: 'specification',
+        issuer: 'Assam Bamboo Development Cooperative',
+        verified: true,
+        summary: 'Natural smoked sal-leaf curing specification without synthetic chemical varnishes; splinter-free sanded rim.'
+      }
+    ],
     warranty: '1 Year Structural Durability Guarantee',
     returnPolicy: '7 Days Hassle-Free Rural Relay Return',
     defectsNotice: 'Zero splintering; smooth polished edges safe for laundry and home storage.',
     verifiedSeller: true,
     sellerVerificationBadge: 'Assam Bamboo Development Cooperative · Verified',
     authenticityStatus: 'verified',
-    artisanStory: 'Bamboo craft is an indigenous heritage of the Bodo community. Gram AI logistics has opened metro gifting and decor markets across Mumbai and Bangalore.',
+    artisanStory: 'Bamboo craft is an indigenous heritage of the Bodo community. GramSetu logistics has opened metro gifting and decor markets across Mumbai and Bangalore.',
     materials: ['Seasoned Assam Golden Bamboo', 'Natural vegetable polish'],
     inStock: true,
     featured: true,
@@ -370,6 +437,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-clothes-1',
+    sku: 'FG-CLO-KHD-006',
     artisanId: 'user-artisan-1',
     artisanName: 'Vedant Mishra (Mishra Craft Guild)',
     artisanLocation: 'Varanasi, Uttar Pradesh',
@@ -384,19 +452,28 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: 'kurta & trouser set (Sizes: M, L, XL)',
     rating: 4.9,
     reviewsCount: 44,
-    imageUrl: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-clothes-1-khadi-kurta.jpg',
+    images: ['/images/products/prod-clothes-1-khadi-kurta.jpg'],
     description: '100% handspun Khadi cotton tailored for all-day breathability and comfort. Hand-loomed in Varanasi village clusters with shell buttons and contrast piping.',
     specifications: {
+      'SKU': 'FG-CLO-KHD-006',
       'Fabric': '100% Handspun Khadi Cotton (80s count)',
       'Style': 'Straight Cut Kurta with Mandarin Collar & Trousers',
       'Buttons': 'Real Mother-of-Pearl River Shell Buttons',
       'Pockets': '2 Deep Side Welt Pockets',
       'Care': 'Machine Wash Gentle or Hand Wash in Cold Water'
     },
+    documents: [
+      {
+        id: 'doc-prod-clothes-1-khadi',
+        productId: 'prod-clothes-1',
+        title: 'Handspun Khadi Mark & Sizing Specification',
+        docType: 'certificate',
+        issuer: 'Varanasi Handloom Cooperative',
+        verified: true,
+        summary: '80-count handspun cotton weave verified for pre-shrunk sizing tolerances across M (40), L (42), XL (44).'
+      }
+    ],
     warranty: '6 Months Stitch Integrity & Fabric Warranty',
     returnPolicy: '7 Days Free Size Exchange or Full Refund',
     defectsNotice: 'Hand-tailored precision; pre-shrunk fabric to prevent shrinking after wash.',
@@ -413,6 +490,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-clothes-2',
+    sku: 'FG-CLO-AJR-007',
     artisanId: 'user-artisan-6',
     artisanName: 'Santosh Devi & Kutch Guild',
     artisanLocation: 'Dhamadka, Kutch, Gujarat',
@@ -427,18 +505,27 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: 'casual full-sleeve shirt (Sizes: S, M, L, XL)',
     rating: 4.8,
     reviewsCount: 31,
-    imageUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-clothes-2-ajrakh-shirt.jpg',
+    images: ['/images/products/prod-clothes-2-ajrakh-shirt.jpg'],
     description: '16-step traditional Ajrakh resist block printing using natural indigo, harda, and iron rust minerals on 100% fine cotton fabric.',
     specifications: {
+      'SKU': 'FG-CLO-AJR-007',
       'Fabric': '100% Fine Cambric Cotton',
       'Printing Method': 'Authentic Kutch 16-Stage Resist Block Print',
       'Dyes': 'Organic Indigo, Alizarin & Myrobalan (Harda)',
       'Fit': 'Modern Relaxed Casual Fit'
     },
+    documents: [
+      {
+        id: 'doc-prod-clothes-2-ajrakh',
+        productId: 'prod-clothes-2',
+        title: '16-Stage Ajrakh Natural Dye & Craft Dossier',
+        docType: 'provenance',
+        issuer: 'Dhamadka Master Blockprinters Association',
+        verified: true,
+        summary: 'Documents natural fermented indigo and madder root dye vat process with zero synthetic azo dyes.'
+      }
+    ],
     warranty: '6 Months Color Fastness Guarantee',
     returnPolicy: '7 Days Easy Return & Free Size Exchange',
     defectsNotice: 'Slight hand-block registration variations celebrate genuine handcraft.',
@@ -455,6 +542,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-sports-1',
+    sku: 'FG-SPT-BAT-008',
     artisanId: 'user-artisan-15',
     artisanName: 'Bashir Ahmad & Sons Willow Works',
     artisanLocation: 'Bijbehara, Anantnag, Jammu & Kashmir',
@@ -469,26 +557,35 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: 'full-size adult cricket bat (Size 6 & SH)',
     rating: 5.0,
     reviewsCount: 67,
-    imageUrl: 'https://images.unsplash.com/photo-1531415074868-036b10554f03?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1531415074868-036b10554f03?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-sports-1-cricket-bat.jpg',
+    images: ['/images/products/prod-sports-1-cricket-bat.jpg'],
     description: 'Genuine air-seasoned Kashmir willow handcrafted along the Jhelum valley. Features 6+ straight grains, pronounced convex spine, lightweight balance, and Singapore cane 3-piece handle.',
     specifications: {
+      'SKU': 'FG-SPT-BAT-008',
       'Willow Grade': 'Grade 1 Hand-Picked Kashmir Willow (Salix alba caerulea)',
       'Grains': '6-8 Clean Straight Natural Grains',
       'Weight': '1180 - 1220 Grams (Balanced Light Pick-Up)',
       'Handle': 'Full Singapore Cane with 3 Rubber Shock Springs',
       'Edge Thickness': '38-40 mm Power Profile'
     },
+    documents: [
+      {
+        id: 'doc-prod-sports-1-spec',
+        productId: 'prod-sports-1',
+        title: 'Kashmir Willow Moisture & Knocking-In Guide',
+        docType: 'care_guide',
+        issuer: 'Bijbehara Bat Makers Guild',
+        verified: true,
+        summary: '18-month Jhelum air-seasoned willow (11% moisture content). Pre-oiled once; lightly knock edges for 45 minutes before leather ball match play.'
+      }
+    ],
     warranty: '1 Year Handle & Blade Replacement Guarantee against structural breakage',
     returnPolicy: '7 Days Return via India Post if weight or balance does not match preference',
     defectsNotice: 'Knocked-in partially; oiled with raw linseed oil. Ready for nets practice.',
     verifiedSeller: true,
     sellerVerificationBadge: 'Bijbehara Bat Makers Guild · Government Registered',
     authenticityStatus: 'verified',
-    artisanStory: 'Crafted by generational bat-makers whose craft was squeezed by commercial middlemen. Gram AI brings verified direct factory pricing to budding athletes and sports clubs nationwide.',
+    artisanStory: 'Crafted by generational bat-makers whose craft was squeezed by commercial middlemen. GramSetu brings verified direct factory pricing to budding athletes and sports clubs nationwide.',
     materials: ['Selected Grade-1 Kashmir Willow', 'Singapore Cane Handle', 'Rubber Chevron Grip'],
     inStock: true,
     featured: true,
@@ -498,6 +595,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-sports-2',
+    sku: 'FG-SPT-YOG-009',
     artisanId: 'user-artisan-16',
     artisanName: 'Kaveri Natural Sports Co-op',
     artisanLocation: 'Alappuzha, Kerala',
@@ -512,18 +610,27 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: 'yoga mat with organic cotton carry strap',
     rating: 4.9,
     reviewsCount: 42,
-    imageUrl: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-sports-2-jute-yogamat.jpg',
+    images: ['/images/products/prod-sports-2-jute-yogamat.jpg'],
     description: 'Eco-friendly workout and yoga mat engineered from sustainable coastal jute fibers bonded to textured tree rubber. Free of PVC, toxic glues, and chemical phthalates.',
     specifications: {
+      'SKU': 'FG-SPT-YOG-009',
       'Thickness': '6 mm High-Density Joint Cushioning',
       'Dimensions': '72 Inches x 24 Inches (183cm x 61cm)',
       'Grip': 'Tire-Tread Tree Rubber Base + Non-Slip Jute Weave',
       'Eco-Rating': '100% Biodegradable & PVC-Free'
     },
+    documents: [
+      {
+        id: 'doc-prod-sports-2-eco',
+        productId: 'prod-sports-2',
+        title: 'PVC-Free Natural Rubber & Jute Material Sheet',
+        docType: 'specification',
+        issuer: 'Kerala Coir & Rubber Workers Federation',
+        verified: true,
+        summary: 'Confirms vulcanized natural tree rubber base with zero phthalates, zero PVC foam, and biodegradable woven jute top.'
+      }
+    ],
     warranty: '2 Years Anti-Tear and Non-Slip Warranty',
     returnPolicy: '7 Days Return with doorstep pickup',
     defectsNotice: 'Zero chemical odours; natural plant aroma dissipates upon first unrolling.',
@@ -540,6 +647,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-sports-3',
+    sku: 'FG-SPT-CRM-010',
     artisanId: 'user-artisan-17',
     artisanName: 'Suraj Woodworks Collective',
     artisanLocation: 'Meerut, Uttar Pradesh',
@@ -554,25 +662,34 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: 'board with wooden coins, acrylic striker & powder',
     rating: 4.8,
     reviewsCount: 35,
-    imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1531415074868-036b10554f03?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-sports-3-carrom-board.jpg',
+    images: ['/images/products/prod-sports-3-carrom-board.jpg'],
     description: 'Handcrafted championship carrom board with kiln-dried solid Sheesham wood border and smooth English birch plywood playing surface. Delivers fast rebound and durable pocket mesh.',
     specifications: {
+      'SKU': 'FG-SPT-CRM-010',
       'Board Size': '32 x 32 Inches (Playing Surface: 29 x 29 Inches)',
       'Border Wood': 'Solid Seasoned Sheesham (Indian Rosewood)',
       'Ply Thickness': '12 mm Warp-Resistant Birch Surface',
       'Accessories': '24 Tournament Coins + 1 Competition Striker + 1 Powder'
     },
+    documents: [
+      {
+        id: 'doc-prod-sports-3-spec',
+        productId: 'prod-sports-3',
+        title: 'Tournament Dimensions & Anti-Warp Spec Sheet',
+        docType: 'specification',
+        issuer: 'Meerut Sports Goods Cluster',
+        verified: true,
+        summary: '29x29 inch satin-finished birch playing surface with 3-inch solid Sheesham rebound border and reinforced back battens.'
+      }
+    ],
     warranty: '2 Years Anti-Warping Guarantee on board surface',
     returnPolicy: '7 Days Replacement Guarantee if transit shock damages frame',
     defectsNotice: 'Mirror-polished water-resistant top; heavy corner reinforcement.',
     verifiedSeller: true,
     sellerVerificationBadge: 'Meerut Sports Goods Cluster · Verified Artisan',
     authenticityStatus: 'verified',
-    artisanStory: 'Meerut is India largest sports craft cluster. By selling directly through Gram AI, Suraj artisan team gets fair pricing and ships directly to schools and community clubs.',
+    artisanStory: 'Meerut is India largest sports craft cluster. By selling directly through GramSetu, Suraj artisan team gets fair pricing and ships directly to schools and community clubs.',
     materials: ['Seasoned Sheesham Wood', '12mm Birch Ply', 'Cotton Pocket Nets'],
     inStock: true,
     featured: false,
@@ -582,6 +699,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-ration-1',
+    sku: 'FG-RAT-WHT-011',
     artisanId: 'user-artisan-18',
     artisanName: 'Bhal Organic Farmers Group',
     artisanLocation: 'Bhal Region, Ahmedabad, Gujarat',
@@ -596,19 +714,28 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: '5kg unbleached paper & cloth bag',
     rating: 5.0,
     reviewsCount: 58,
-    imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-ration-1-wheat-atta.jpg',
+    images: ['/images/products/prod-ration-1-wheat-atta.jpg'],
     description: 'Authentic GI-tagged rainfed Bhalia wheat naturally rich in protein, carotene, and sweet flavor. Slowly ground on water-chilled stone chakki to preserve dietary fiber and nutrients.',
     specifications: {
+      'SKU': 'FG-RAT-WHT-011',
       'Weight': '5 Kilograms',
       'Wheat Variety': 'GI-Tagged Daudkhani Bhalia Heirloom Wheat',
       'Grinding': 'Cold Slow Stone-Chakki Ground',
       'Nutrients': 'High Natural Gluten Index, Zero Maida / Starch Added',
       'Certification': 'GI Certified #GI-GJ-BHAL & FSSAI'
     },
+    documents: [
+      {
+        id: 'doc-prod-ration-1-gi',
+        productId: 'prod-ration-1',
+        title: 'Bhalia Wheat GI Registry & Chakki Milling Sheet',
+        docType: 'certificate',
+        issuer: 'Bhal Organic Wheat Producers Cooperative',
+        verified: true,
+        summary: 'GI-GJ-BHAL verified rainfed Daudkhani wheat milled below 40°C with 100% natural wheat bran.'
+      }
+    ],
     warranty: '90 Days Farm-Freshness Guarantee from Milling Date',
     returnPolicy: '100% Satisfaction or Full Refund',
     defectsNotice: 'Freshly milled in weekly batches. Whole grain with 100% natural bran.',
@@ -625,6 +752,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-ration-2',
+    sku: 'FG-RAT-GHE-012',
     artisanId: 'user-artisan-19',
     artisanName: 'Bastar Forest Foragers & SHG',
     artisanLocation: 'Dantewada, Chhattisgarh',
@@ -639,26 +767,35 @@ export const INITIAL_PRODUCTS: Product[] = [
     unit: '500ml glass jar',
     rating: 5.0,
     reviewsCount: 71,
-    imageUrl: 'https://images.unsplash.com/photo-1589927986089-35812388d1f4?auto=format&fit=crop&w=800&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1589927986089-35812388d1f4?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=800&q=80'
-    ],
+    imageUrl: '/images/products/prod-ration-2-bilona-ghee.jpg',
+    images: ['/images/products/prod-ration-2-bilona-ghee.jpg'],
     description: 'Authentic A2 Desi cow ghee hand-churned using the traditional wooden bi-directional bilona method from curd made of whole milk of free-grazing indigenous cows. Slow-simmered on cow-dung fire.',
     specifications: {
+      'SKU': 'FG-RAT-GHE-012',
       'Volume': '500 Millilitres',
       'Milk Source': 'Free-Range Indigenous Desi Gir & Sahiwal Breed Cows',
       'Process': 'Vedic Bilona Churning (Milk -> Curd -> Makkhan -> Ghee)',
       'Fat Profile': 'Rich in Butyric Acid, Omega-3 and CLA',
       'Lab Tested': '100% Pure, Zero Adulterants, Zero Hormone Injections'
     },
+    documents: [
+      {
+        id: 'doc-prod-ration-2-lab',
+        productId: 'prod-ration-2',
+        title: 'A2 Beta-Casein Purity & Bilona Process Certificate',
+        docType: 'lab_report',
+        issuer: 'Dantewada Tribal Women SHG & FSSAI Unit',
+        verified: true,
+        summary: 'Verified free-range indigenous Gir/Sahiwal herd A2 milk curd churning with zero palm oil or vegetable fat.'
+      }
+    ],
     warranty: '12 Months Freshness Guarantee from Churning Date',
     returnPolicy: 'Replacement guarantee if jar seal is compromised in transit',
     defectsNotice: 'Granular (Danedar) golden texture with divine natural aroma.',
     verifiedSeller: true,
     sellerVerificationBadge: 'Dantewada Tribal Women Self Help Group',
     authenticityStatus: 'verified',
-    artisanStory: 'Prepared by tribal women self-help groups who look after free-grazing cows in non-commercial rural pastures. Gram AI empowers rural women with direct consumer accounts.',
+    artisanStory: 'Prepared by tribal women self-help groups who look after free-grazing cows in non-commercial rural pastures. GramSetu empowers rural women with direct consumer accounts.',
     materials: ['Pure A2 Desi Cow Milk Curd', 'Wood fire simmered'],
     inStock: true,
     featured: true,
@@ -738,9 +875,7 @@ export const INITIAL_REVIEWS: Review[] = [
     comment: 'The craftsmanship of this Madhubani Tussar silk dupatta is astonishing. The fine line detailing on the peacock motif using natural dyes has such depth. Came with a handwritten card from Vedant Mishra and the weavers!',
     date: '2026-09-20',
     verifiedPurchase: true,
-    reviewImages: [
-      'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80'
-    ],
+    reviewImages: ['/images/products/prod-1-madhubani-dupatta.jpg'],
     helpfulCount: 24,
     reported: false,
     artisanReply: 'Thank you Arjun ji! Knowing that our heritage craft is treasured in Bengaluru brings immense joy to our artisan guild.'
@@ -759,9 +894,7 @@ export const INITIAL_REVIEWS: Review[] = [
     comment: 'Cooked biryani in this terracotta handi on gas stove (with a heat diffuser). The earthy aroma and tenderness of rice were unforgettable. Packaging with dried husk was 100% eco-friendly and arrived completely intact.',
     date: '2026-09-18',
     verifiedPurchase: true,
-    reviewImages: [
-      'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80'
-    ],
+    reviewImages: ['/images/products/prod-2-terracotta-pot.jpg'],
     helpfulCount: 31,
     reported: false,
     artisanReply: 'Dhanyawad Sunita ji. Please remember to soak the pot in clean water for 15 mins before first use. Warm regards from Molela!'
@@ -780,9 +913,7 @@ export const INITIAL_REVIEWS: Review[] = [
     comment: 'Incredible ping on this Grade-1 Kashmir willow bat. The balance feels just like high-end English willow bats costing 5x as much. Straight grains and beautiful Singapore cane handle!',
     date: '2026-10-02',
     verifiedPurchase: true,
-    reviewImages: [
-      'https://images.unsplash.com/photo-1531415074868-036b10554f03?auto=format&fit=crop&w=800&q=80'
-    ],
+    reviewImages: ['/images/products/prod-sports-1-cricket-bat.jpg'],
     helpfulCount: 19,
     reported: false,
     artisanReply: 'Shukriya Arjun bhai! We season our willow by the river Jhelum for 18 months before shaping. Glad you loved the balance.'
@@ -803,7 +934,7 @@ export const INITIAL_ORDERS: Order[] = [
         title: 'Hand-Painted Madhubani Tussar Silk Dupatta',
         price: 1850,
         quantity: 1,
-        imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
+        imageUrl: '/images/products/prod-1-madhubani-dupatta.jpg',
         artisanName: 'Vedant Mishra (Mishra Craft Guild)'
       }
     ],
@@ -832,7 +963,7 @@ export const INITIAL_ORDERS: Order[] = [
         title: 'Handcrafted Kashmir Willow Cricket Bat (Grade-1 Pro Willow)',
         price: 1890,
         quantity: 1,
-        imageUrl: 'https://images.unsplash.com/photo-1531415074868-036b10554f03?auto=format&fit=crop&w=800&q=80',
+        imageUrl: '/images/products/prod-sports-1-cricket-bat.jpg',
         artisanName: 'Bashir Ahmad & Sons Willow Works'
       }
     ],

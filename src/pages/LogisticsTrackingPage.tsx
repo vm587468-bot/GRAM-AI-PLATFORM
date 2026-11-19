@@ -14,6 +14,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { SafeProductImage } from '../components/SafeProductImage';
 
 interface LogisticsTrackingPageProps {
   initialTrackingId?: string;
@@ -241,7 +242,13 @@ export const LogisticsTrackingPage: React.FC<LogisticsTrackingPageProps> = ({
               <div className="flex flex-wrap gap-3">
                 {trackingData.order.items.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
-                    <img src={item.imageUrl} alt={item.title} className="w-8 h-8 rounded-lg object-cover" />
+                    <SafeProductImage
+                      src={item.imageUrl}
+                      alt={item.title}
+                      compact
+                      containerClassName="w-8 h-8 rounded-lg shrink-0"
+                      className="w-full h-full object-cover"
+                    />
                     <div>
                       <div className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">{item.title}</div>
                       <div className="text-[10px] text-slate-400">Qty: {item.quantity} · Producer: {item.artisanName}</div>

@@ -22,41 +22,57 @@ import {
   AlertTriangle,
   Award,
   RefreshCw,
-  Send
+  Send,
+  AlertCircle,
+  FileText
 } from 'lucide-react';
-import { Product, Review } from '../types';
+import { Product, ProductDocument, Review } from '../types';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { SupportedLanguage } from '../i18n';
 import { ProductImageGallery } from '../components/ProductImageGallery';
+import { SafeProductImage } from '../components/SafeProductImage';
 
 interface MarketplacePageProps {
   onOpenCheckout: () => void;
   currentLang?: SupportedLanguage;
   externalSearch?: string;
+  initialProductId?: string | null;
+  onClearSelectedProduct?: () => void;
   setActiveTab?: (tab: string) => void;
 }
 
 export const MarketplacePage: React.FC<MarketplacePageProps> = ({ 
   onOpenCheckout,
   externalSearch = '',
+  initialProductId = null,
+  onClearSelectedProduct,
   setActiveTab
 }) => {
   const { addToCart } = useCart();
-  const { t, language } = useLanguage();
+  const { currentUser, token } = useAuth();
+  const { t } = useLanguage();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [limit, setLimit] = useState<number>(12);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [inlineToast, setInlineToast] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>(externalSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(externalSearch);
   const [selectedCondition, setSelectedCondition] = useState<string>('all');
   const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false);
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
-  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortBy, setSortBy] = useState<string>('relevance');
 
   // Product Detail Modal State
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<ProductDocument | null>(null);
   const [productReviews, setProductReviews] = useState<Review[]>([]);
+  const [reviewSort, setReviewSort] = useState<'newest' | 'highest' | 'helpful'>('newest');
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [addedNotice, setAddedNotice] = useState(false);
@@ -89,6 +105,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   const [reportSending, setReportSending] = useState(false);
   const [reportSentNotice, setReportSentNotice] = useState<string | null>(null);
 
+  // Review report inline modal
+  const [reportingReviewId, setReportingReviewId] = useState<string | null>(null);
+  const [reviewReportReason, setReviewReportReason] = useState('');
+
   // Wishlist State
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
@@ -99,43 +119,82 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     }
   });
 
+  const showToast = (msg: string) => {
+    setInlineToast(msg);
+    setTimeout(() => setInlineToast(null), 3200);
+  };
+
   useEffect(() => {
     if (externalSearch) {
       setSearchQuery(externalSearch);
+      setDebouncedSearch(externalSearch);
     }
   }, [externalSearch]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     fetchProducts();
-  }, [selectedCategory, searchQuery, selectedCondition, verifiedOnly, inStockOnly, sortBy]);
+  }, [selectedCategory, debouncedSearch, selectedCondition, verifiedOnly, inStockOnly, sortBy, limit]);
+
+  useEffect(() => {
+    if (!initialProductId) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/products/${encodeURIComponent(initialProductId)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active && data.product) {
+          openProductModal(data.product);
+        }
+      } catch (err) {
+        console.error('Failed to load initial product', err);
+      }
+    })();
+    return () => { active = false; };
+  }, [initialProductId]);
 
   const fetchProducts = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const url = new URL('/api/products', window.location.origin);
       if (selectedCategory !== 'all') url.searchParams.set('category', selectedCategory);
-      if (searchQuery.trim()) url.searchParams.set('search', searchQuery.trim());
+      if (debouncedSearch) url.searchParams.set('search', debouncedSearch);
       if (selectedCondition !== 'all') url.searchParams.set('condition', selectedCondition);
       if (verifiedOnly) url.searchParams.set('verifiedOnly', 'true');
       if (inStockOnly) url.searchParams.set('inStockOnly', 'true');
       if (sortBy) url.searchParams.set('sort', sortBy);
+      url.searchParams.set('limit', String(limit));
 
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('Unable to load products right now.');
       const data = await res.json();
       setProducts(data.products || []);
-    } catch (err) {
-      console.error('Failed to load products', err);
+      setTotalCount(
+        typeof data.total === 'number'
+          ? data.total
+          : typeof data.totalCount === 'number'
+          ? data.totalCount
+          : (data.products || []).length
+      );
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to load marketplace products.');
     } finally {
       setLoading(false);
     }
   };
 
-  const openProductModal = async (product: Product) => {
-    setSelectedProduct(product);
-    setQuantity(1);
+  const fetchReviewsForProduct = async (productId: string, sort: 'newest' | 'highest' | 'helpful' = reviewSort) => {
     setReviewsLoading(true);
     try {
-      const res = await fetch(`/api/reviews?productId=${product.id}`);
+      const res = await fetch(`/api/reviews?productId=${encodeURIComponent(productId)}&sort=${sort}`, { cache: 'no-store' });
       const data = await res.json();
       setProductReviews(data.reviews || []);
     } catch (err) {
@@ -143,6 +202,33 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     } finally {
       setReviewsLoading(false);
     }
+  };
+
+  const openProductModal = async (product: Product) => {
+    setSelectedProduct(product);
+    setSelectedDoc(null);
+    setQuantity(1);
+    setAddedNotice(false);
+    try {
+      const [detailRes] = await Promise.all([
+        fetch(`/api/products/${encodeURIComponent(product.id)}`, { cache: 'no-store' }),
+        fetchReviewsForProduct(product.id, reviewSort)
+      ]);
+      if (detailRes.ok) {
+        const detailData = await detailRes.json();
+        if (detailData?.product && detailData.product.id === product.id) {
+          setSelectedProduct(detailData.product);
+        }
+      }
+    } catch {
+      await fetchReviewsForProduct(product.id, reviewSort);
+    }
+  };
+
+  const closeProductModal = () => {
+    setSelectedProduct(null);
+    setSelectedDoc(null);
+    if (onClearSelectedProduct) onClearSelectedProduct();
   };
 
   const handleAddToCart = (product: Product, qty: number) => {
@@ -174,7 +260,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         return prev.filter(p => p.id !== product.id);
       }
       if (prev.length >= 3) {
-        alert('You can compare up to 3 products side-by-side.');
+        showToast('You can compare up to 3 products side-by-side.');
         return prev;
       }
       return [...prev, product];
@@ -189,13 +275,16 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     setReviewNotice(null);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
       const res = await fetch('/api/reviews', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           productId: selectedProduct.id,
-          userId: 'user-customer-1',
-          userName: 'Arjun Sharma',
+          userId: currentUser.id,
+          userName: currentUser.name,
           rating: reviewRating,
           qualityRating,
           durabilityRating,
@@ -212,7 +301,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       }
 
       setProductReviews(prev => [data.review, ...prev]);
-      setReviewNotice('Thank you! Your verified review has been published.');
+      setReviewNotice(
+        data.review?.verifiedPurchase
+          ? 'Thank you! Your verified-purchase review has been published.'
+          : 'Thank you! Your review has been published.'
+      );
       setReviewComment('');
       setReviewPhoto(null);
       setTimeout(() => {
@@ -249,16 +342,18 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     }
   };
 
-  const handleReportReview = async (reviewId: string) => {
-    const reason = prompt('Please specify why this review is suspicious or inaccurate:');
-    if (!reason) return;
+  const handleReportReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reportingReviewId || !reviewReportReason.trim()) return;
     try {
-      await fetch(`/api/reviews/${reviewId}/report`, {
+      await fetch(`/api/reviews/${reportingReviewId}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
+        body: JSON.stringify({ reason: reviewReportReason.trim() })
       });
-      alert('Thank you. The review has been reported for moderation.');
+      setReportingReviewId(null);
+      setReviewReportReason('');
+      showToast('Thank you. The review has been reported for moderation.');
     } catch (err) {
       console.error(err);
     }
@@ -277,8 +372,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         body: JSON.stringify({
           productId: selectedProduct.id,
           productTitle: selectedProduct.title,
-          senderId: 'user-customer-1',
-          senderName: 'Arjun Sharma',
+          senderId: currentUser.id,
+          senderName: currentUser.name,
           senderRole: 'customer',
           recipientId: selectedProduct.artisanId,
           recipientName: selectedProduct.artisanName,
@@ -340,6 +435,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
   return (
     <div className="container mx-auto px-4 max-w-6xl py-8 space-y-8 animate-fadeIn">
+      {inlineToast && (
+        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl border border-emerald-500 text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{inlineToast}</span>
+        </div>
+      )}
       
       {/* Top Banner Notice for Deals & Direct Commerce */}
       <div className="bg-gradient-to-r from-[#2E7D32] to-[#1B5E20] text-white rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl border border-white/10">
@@ -462,6 +563,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               onChange={(e) => setSortBy(e.target.value)}
               className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold focus:outline-none cursor-pointer"
             >
+              <option value="relevance">{t.sortRelevance}</option>
               <option value="newest">{t.sortNewest}</option>
               <option value="price_asc">{t.sortPriceAsc}</option>
               <option value="price_desc">{t.sortPriceDesc}</option>
@@ -472,11 +574,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               <button
                 onClick={() => {
                   setSearchQuery('');
+                  setDebouncedSearch('');
                   setSelectedCategory('all');
                   setSelectedCondition('all');
                   setVerifiedOnly(false);
                   setInStockOnly(false);
-                  setSortBy('newest');
+                  setSortBy('relevance');
                 }}
                 className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-semibold text-xs ml-2 cursor-pointer"
               >
@@ -523,20 +626,36 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       )}
 
       {/* Results Count Bar */}
-      <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
+      <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1 tabular-nums">
         <span>
-          {t.showingProductsCount}: {products.length}
+          {t.showingProductsCount}: {products.length} {totalCount > products.length ? `of ${totalCount}` : ''}
         </span>
         <span>
           {t.fairTradeShareNotice}
         </span>
       </div>
 
+      {/* Error State */}
+      {errorMsg && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center justify-between gap-4 text-xs text-rose-800 dark:text-rose-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            onClick={fetchProducts}
+            className="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-semibold cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Products Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((n) => (
-            <div key={n} className="bg-white dark:bg-[#1E293B] rounded-3xl p-5 border border-slate-200 dark:border-slate-800 space-y-4 animate-pulse">
+            <div key={n} className="bg-white dark:bg-[#1E293B] rounded-3xl p-5 border border-slate-200 dark:border-slate-800 space-y-4">
               <div className="aspect-square bg-slate-200 dark:bg-slate-700/60 rounded-2xl" />
               <div className="h-4 bg-slate-200 dark:bg-slate-700/60 rounded-lg w-3/4" />
               <div className="h-3 bg-slate-200 dark:bg-slate-700/60 rounded-lg w-1/2" />
@@ -570,9 +689,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 {/* Product Image Gallery with Zoom */}
                 <div className="relative">
                   <ProductImageGallery
+                    key={product.id}
+                    productId={product.id}
                     images={product.images}
                     primaryImageUrl={product.imageUrl}
                     title={product.title}
+                    updatedAt={product.updatedAt}
                     aspectRatio="aspect-square"
                   />
 
@@ -697,13 +819,25 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         </div>
       )}
 
+      {!loading && totalCount > products.length && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setLimit(prev => prev + 9)}
+            className="px-6 py-2.5 rounded-xl bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-slate-700 text-xs font-bold text-[#2E7D32] dark:text-[#22C55E] hover:border-[#2E7D32] cursor-pointer"
+          >
+            Load More Products ({totalCount - products.length} remaining)
+          </button>
+        </div>
+      )}
+
       {/* ==================== PRODUCT DETAIL MODAL ==================== */}
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
           <div className="bg-white dark:bg-[#1E293B] rounded-3xl max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 relative text-slate-800 dark:text-slate-100">
             
             <button
-              onClick={() => setSelectedProduct(null)}
+              onClick={closeProductModal}
+              aria-label="Close product details"
               className="absolute top-5 right-5 p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer z-10"
             >
               <X className="w-5 h-5" />
@@ -713,9 +847,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               {/* Left Gallery with Zoom & Multi-Photo View */}
               <div>
                 <ProductImageGallery
+                  key={selectedProduct.id}
+                  productId={selectedProduct.id}
                   images={selectedProduct.images}
                   primaryImageUrl={selectedProduct.imageUrl}
                   title={selectedProduct.title}
+                  updatedAt={selectedProduct.updatedAt}
                   aspectRatio="aspect-square"
                 />
               </div>
@@ -723,13 +860,18 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               {/* Right Summary Info */}
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">
                       {selectedProduct.sellerVerificationBadge || t.verifiedArtisan}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold">
                       {t.filterByCondition}: {selectedProduct.condition === 'new' ? t.conditionNew : selectedProduct.condition === 'like_new' ? t.conditionLikeNew : selectedProduct.condition === 'good' ? t.conditionGood : t.conditionFair}
                     </span>
+                    {selectedProduct.sku && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-mono font-bold">
+                        SKU: {selectedProduct.sku}
+                      </span>
+                    )}
                   </div>
 
                   <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white leading-snug">
@@ -912,6 +1054,69 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               </div>
             </div>
 
+            {/* Product Documentation & Verification Dossiers (Strictly bound to Product ID) */}
+            {(() => {
+              const boundDocs = (selectedProduct.documents || []).filter(
+                d => !d.productId || d.productId === selectedProduct.id
+              );
+              if (boundDocs.length === 0) return null;
+              return (
+                <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-[#2E7D32] dark:text-[#22C55E]" />
+                      <span>Product Documents &amp; Quality Certificates</span>
+                    </h3>
+                    <span className="text-[11px] font-mono text-slate-500">
+                      ID: {selectedProduct.id}{selectedProduct.sku ? ` · ${selectedProduct.sku}` : ''}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {boundDocs.map((doc) => {
+                      const isExpanded = selectedDoc?.id === doc.id;
+                      return (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => setSelectedDoc(isExpanded ? null : doc)}
+                          className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer space-y-1.5 ${
+                            isExpanded
+                              ? 'bg-emerald-50 dark:bg-emerald-950/50 border-[#2E7D32] dark:border-emerald-500'
+                              : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 hover:border-[#2E7D32]/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300">
+                              {doc.docType.replace('_', ' ')}
+                            </span>
+                            {doc.verified && (
+                              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Verified
+                              </span>
+                            )}
+                          </div>
+                          <div className="font-bold text-slate-900 dark:text-white">{doc.title}</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Issued by: {doc.issuer}
+                          </div>
+                          {isExpanded && (
+                            <div className="pt-2 mt-2 border-t border-emerald-200/70 dark:border-emerald-800/60 text-[11px] text-slate-700 dark:text-slate-200 space-y-1">
+                              <p className="leading-relaxed">{doc.summary}</p>
+                              <p className="font-mono text-[10px] text-slate-500">
+                                Bound to Product: {selectedProduct.title} ({selectedProduct.sku || selectedProduct.id})
+                              </p>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Artisan Story */}
             <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 text-xs space-y-1.5">
               <span className="font-bold font-serif text-sm text-amber-950 dark:text-amber-300 block">
@@ -934,12 +1139,28 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setIsReviewModalOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-[#2E7D32] text-white font-bold text-xs hover:bg-[#1B5E20] transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
-                >
-                  {t.writeReview}
-                </button>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={reviewSort}
+                    onChange={(e) => {
+                      const nextSort = e.target.value as 'newest' | 'highest' | 'helpful';
+                      setReviewSort(nextSort);
+                      if (selectedProduct) fetchReviewsForProduct(selectedProduct.id, nextSort);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="newest">Newest Reviews</option>
+                    <option value="highest">Highest Rated</option>
+                    <option value="helpful">Most Helpful</option>
+                  </select>
+
+                  <button
+                    onClick={() => setIsReviewModalOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-[#2E7D32] text-white font-bold text-xs hover:bg-[#1B5E20] transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
+                  >
+                    {t.writeReview}
+                  </button>
+                </div>
               </div>
 
               {/* Reviews List */}
@@ -1025,11 +1246,13 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       {review.reviewImages && review.reviewImages.length > 0 && (
                         <div className="flex items-center gap-2 pt-1">
                           {review.reviewImages.map((img, idx) => (
-                            <img
+                            <SafeProductImage
                               key={idx}
                               src={img}
-                              alt="Review attachment"
-                              className="w-16 h-16 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-2xs"
+                              alt={`${selectedProduct.title} review photo ${idx + 1}`}
+                              compact
+                              containerClassName="w-16 h-16 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0"
+                              className="w-full h-full object-cover"
                             />
                           ))}
                         </div>
@@ -1058,7 +1281,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                         </button>
 
                         <button
-                          onClick={() => handleReportReview(review.id)}
+                          onClick={() => {
+                            setReportingReviewId(review.id);
+                            setReviewReportReason('');
+                          }}
                           className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                         >
                           {t.reportReview}
@@ -1071,6 +1297,46 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               )}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ==================== REPORT REVIEW MODAL ==================== */}
+      {reportingReviewId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-[#1E293B] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800 relative text-slate-800 dark:text-slate-100">
+            <button
+              onClick={() => setReportingReviewId(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <h3 className="font-bold text-base">Report Suspicious Review</h3>
+            <form onSubmit={handleReportReviewSubmit} className="space-y-3 text-xs">
+              <textarea
+                rows={3}
+                required
+                value={reviewReportReason}
+                onChange={(e) => setReviewReportReason(e.target.value)}
+                placeholder="Explain why this review appears misleading or inaccurate..."
+                className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:outline-none focus:border-[#2E7D32]"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReportingReviewId(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold cursor-pointer"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold cursor-pointer"
+                >
+                  {t.submitReportBtn}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1338,7 +1604,14 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     {comparisonList.map(p => (
                       <th key={p.id} className="p-3 font-bold text-slate-900 dark:text-white w-1/4">
                         <div className="space-y-2">
-                          <img src={p.imageUrl} alt={p.title} className="w-20 h-20 rounded-xl object-cover border border-slate-200" />
+                          <SafeProductImage
+                            src={p.imageUrl}
+                            alt={p.title}
+                            updatedAt={p.updatedAt}
+                            compact
+                            containerClassName="w-20 h-20 rounded-xl border border-slate-200 dark:border-slate-700"
+                            className="w-full h-full object-cover"
+                          />
                           <div className="font-bold line-clamp-2">{p.title}</div>
                           <div className="text-emerald-700 dark:text-emerald-400 font-serif text-sm">₹{p.price}</div>
                           <button

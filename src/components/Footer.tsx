@@ -69,7 +69,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-[#E6B325] text-[#1E3D1A] flex items-center justify-center font-bold">
-                G
+                F
               </div>
               <span className="text-xl font-serif font-bold text-white tracking-wide">{t.appName}</span>
             </div>
@@ -94,10 +94,20 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
 
           {/* Platform Columns */}
           <div>
-            <h5 className="font-semibold text-white text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
+            <h5 className="font-semibold text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
               {t.navMarketplace}
             </h5>
             <ul className="space-y-2 text-xs text-white/75">
+              <li>
+                <button onClick={() => setActiveTab('projects')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.navProjects}
+                </button>
+              </li>
+              <li>
+                <button onClick={() => setActiveTab('market')} className="hover:text-white transition-colors cursor-pointer">
+                  {t.navMarket}
+                </button>
+              </li>
               <li>
                 <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors cursor-pointer">
                   {t.catTextiles}
@@ -113,21 +123,11 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
                   {t.catSpices}
                 </button>
               </li>
-              <li>
-                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors cursor-pointer">
-                  {t.catHoneyOils}
-                </button>
-              </li>
-              <li>
-                <button onClick={() => setActiveTab('marketplace')} className="hover:text-white transition-colors cursor-pointer">
-                  {t.catBambooWood}
-                </button>
-              </li>
             </ul>
           </div>
 
           <div>
-            <h5 className="font-semibold text-white text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
+            <h5 className="font-semibold text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
               {t.navDeals}
             </h5>
             <ul className="space-y-2 text-xs text-white/75">
@@ -160,7 +160,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab }) => {
           </div>
 
           <div>
-            <h5 className="font-semibold text-white text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
+            <h5 className="font-semibold text-xs uppercase tracking-wider mb-3 text-[#E6B325]">
               {t.navSupport}
             </h5>
             <ul className="space-y-2 text-xs text-white/75">
